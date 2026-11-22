@@ -1,0 +1,51 @@
+# AGENTS.md
+
+Notes for coding agents (and people) working in this repository.
+
+## What this is
+
+`simple-phone`: a SIP test phone. The Python package bundles PJSUA2 (PJSIP 2.17), compiled into the wheel, and adds an async API (`AsyncPhone`, `Call`, typed events) and a command (`simple-phone`). It targets Linux x86_64 and Python 3.14 only. The license is GPL-2.0-or-later, because PJSIP is linked in.
+
+Read [docs/architecture.md](docs/architecture.md) before changing anything under `src/simple_phone/core/`.
+
+## Layout
+
+| Path | Contents |
+|---|---|
+| `src/simple_phone/core/` | PJSUA2 on one engine thread. Synchronous, no asyncio |
+| `src/simple_phone/*.py` | Public API (`phone.py`, `call.py`, `events.py`, `models.py`, `media.py`, `sync.py`) and the CLI (`cli.py`) |
+| `src/simple_phone/_native/` | Generated SWIG binding. Never edit it; it is rebuilt by `scripts/build_pjsip.sh` |
+| `tests/` | `test_*.py` unit tests (real calls on 127.0.0.1), `native_checks.py`, `test_asterisk.py` plus `tests/asterisk/` |
+| `examples/api/` | Runnable examples, each on one machine without a PBX |
+| `scripts/` | Setup, checks, tests, build, Asterisk |
+| `packaging/config_site.h` | Native limits compiled into PJSIP |
+| `packages/` | Ignored by git. Separate packages built on the core |
+
+## Commands
+
+```bash
+bash scripts/dev.sh                 # first time, or after changing dependencies
+bash scripts/check.sh               # ruff, ty, metadata, unit tests: run before every commit
+bash scripts/test.sh --native       # PJSUA2 integration on localhost
+bash scripts/asterisk.sh && ASTERISK_HOST=127.0.0.1 .venv/bin/python -m unittest discover -s tests -t tests -p 'test_asterisk.py'
+```
+
+Run Python with `.venv/bin/python`, not `uv run`. `uv run` may rebuild the native extension, which takes minutes.
+
+## Rules
+
+- **Only the engine thread calls PJSUA2.** From the API, use `phone._run(function, *args)` or `call._do(core_function, *args)`. Never keep a native object on the asyncio side; look it up by `ref` on the engine thread.
+- **Native lifetimes are the usual cause of crashes.** Drop a call in its DISCONNECTED callback. Give REFER and Replaces a child `Call`. Delete ports and buddies with `destroy_native`. Keep `getInfo()` results in a variable while you read their vectors.
+- **Events are dataclasses** in `events.py`. The core creates them, and the hub fills `phone` and `call`. A new PJSUA2 callback means a new event type, emitted from the core.
+- **Keep `__init__.py` files to imports.** Code goes in regular modules.
+- **Keep the code simple.** Prefer the stdlib or what the project already has. Add no abstraction before a second caller needs it. The CLI is one file on argparse and rich.
+- **Tests make real calls.** Put new behavior in `tests/test_api.py` with two local accounts on one endpoint. Use `test_asterisk.py` when the behavior needs a PBX.
+- **Commits** use Conventional Commits (`feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `ci:`, `chore:`), are small, and leave `check.sh` green.
+
+## Gotchas
+
+- PJSUA sends out-of-dialog requests (`phone.request`, `options`) without credentials, so a PBX may answer 401.
+- A PJSUA buddy holds one subscription: presence or dialog (BLF), not both.
+- PJSUA offers `m=text` on every call by default. The core turns it off unless `Settings.text` is set.
+- `hold()` and `unhold()` wait for the re-INVITE answer. Calling `unhold()` before that fails with `PJ_EINVALIDOP`.
+- A REGISTER 401 or 407 that reaches `onRegState` is final. PJSUA answers the challenge itself.
