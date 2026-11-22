@@ -1,0 +1,89 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "simple-phone"
+version = "0.0.1"
+description = "SIP test phone in Python (async API) with PJSUA2 bundled"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = ["rich>=14"]
+# PJSIP is GPL-2.0-or-later, and it is linked into this package.
+license = "GPL-2.0-or-later"
+classifiers = [
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Communications :: Internet Phone",
+]
+
+[project.scripts]
+simple-phone = "simple_phone.cli:main"
+
+[project.optional-dependencies]
+# simple_phone.media engines
+stt = ["faster-whisper>=1.0"]
+tts = ["piper-tts>=1.3"]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.17.5",
+    "setuptools>=77",
+    "ty>=0.0.102",
+]
+
+[tool.uv]
+required-version = ">=0.13.7"
+cache-keys = [
+    { file = "pyproject.toml" },
+    { file = "setup.py" },
+    { file = "README.md" },
+    { file = "packaging/config_site.h" },
+    { file = "src/simple_phone/_native/_build.py" },
+    { file = "src/simple_phone/_native/pjsua2_wrap.cpp" },
+    { file = "build/pjsip/lib/*.a" },
+    { env = "PJSIP_PREFIX" },
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["simple_phone", "simple_phone.*"]
+namespaces = false
+
+[tool.setuptools]
+include-package-data = false     # keep the 6 MB SWIG sources out of the wheel
+
+[tool.ruff]
+target-version = "py314"
+line-length = 88
+force-exclude = true
+extend-exclude = ["src/simple_phone/_native", "wheelhouse", "build", "packages"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "B"]
+
+[tool.ty.src]
+include = ["src", "scripts", "examples", "setup.py"]
+exclude = ["tests", "src/simple_phone/_native", "build", "dist", "wheelhouse"]
+
+[tool.cibuildwheel]
+build = "cp314-*"
+skip = "*-musllinux_*"
+build-frontend = "build"
+environment = { PJSIP_PREFIX = "/opt/pjsip" }
+test-sources = ["tests"]
+test-command = [
+    "python -c \"import simple_phone; print(simple_phone.__version__)\"",
+    "python -m unittest discover -s tests -p 'test_*.py' -v",
+    "python tests/native_checks.py -v",
+]
+
+[tool.cibuildwheel.linux]
+archs = ["x86_64"]
+manylinux-x86_64-image = "manylinux_2_28"
+# Once per container: system headers, SWIG, then PJSIP and the wrapper.
+before-all = "yum install -y alsa-lib-devel && pipx install swig && bash scripts/build_pjsip.sh"
+# libasound stays a system library, so the user's ALSA plugins and
+# configuration (PulseAudio, PipeWire, WSLg) keep working.
+repair-wheel-command = "auditwheel repair --exclude libasound.so.2 -w {dest_dir} {wheel}"
