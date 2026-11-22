@@ -1,0 +1,11 @@
+{
+  "account_id": "local",
+  "server": "127.0.0.1",
+  "user": "1001",
+  "register": false,
+  "local_port": 5070,
+  "rtp_port": 40000,
+  "max_calls": 4,
+  "media": "silent",
+  "listen": false
+}

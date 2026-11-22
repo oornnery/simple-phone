@@ -1,0 +1,7 @@
+{
+  "account_id": "pbx",
+  "server": "pbx.example.com",
+  "user": "1001",
+  "register": true,
+  "password_env": "SIP_PASSWORD"
+}
