@@ -1,0 +1,46 @@
+name: release
+
+# Push a tag v<version> (the version in pyproject.toml): CI runs, then the
+# manylinux wheels are built, tested and published to PyPI.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  wheels:
+    needs: ci
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - name: Tag matches the project version
+        run: python scripts/check_package.py --metadata --tag "$GITHUB_REF_NAME"
+      - uses: pypa/cibuildwheel@v3.2
+      - name: Wheel contents
+        run: python scripts/check_package.py wheelhouse/*.whl
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels
+          path: wheelhouse/*.whl
+          if-no-files-found: error
+
+  publish:
+    needs: wheels
+    runs-on: ubuntu-24.04
+    environment: pypi
+    permissions:
+      id-token: write # PyPI trusted publishing: no token stored
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheels
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@release/v1

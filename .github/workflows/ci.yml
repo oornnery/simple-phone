@@ -1,0 +1,65 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  workflow_call: # release.yml runs it before publishing
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uvx ruff check .
+      - run: uvx ruff format --check .
+
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.7"
+      - name: Native build requirements
+        run: sudo apt-get update && sudo apt-get install -y build-essential pkg-config swig libasound2-dev
+      - name: Cache PJSIP and the SWIG wrapper
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/pjsip
+            src/simple_phone/_native/_build.py
+            src/simple_phone/_native/pjsua2.py
+            src/simple_phone/_native/pjsua2_wrap.cpp
+            src/simple_phone/_native/pjsua2_wrap.h
+          key: pjsip-${{ runner.os }}-${{ hashFiles('scripts/build_pjsip.sh', 'packaging/config_site.h') }}
+      - name: Development environment
+        run: bash scripts/dev.sh --python 3.14
+      - name: Ruff, ty, metadata and unit tests
+        run: bash scripts/check.sh
+      - name: PJSUA2 integration on localhost
+        run: bash scripts/test.sh --native
+      - name: Start Asterisk (Docker)
+        run: bash scripts/asterisk.sh
+      - name: Tests against Asterisk
+        env:
+          ASTERISK_HOST: 127.0.0.1
+        run: .venv/bin/python -m unittest discover -s tests -t tests -p 'test_asterisk.py' -v
+      - name: Asterisk log
+        if: failure()
+        run: docker logs simple-phone-asterisk | tail -100
+      - name: Build and check the wheel
+        run: bash scripts/build.sh --python 3.14 && .venv/bin/python scripts/check_package.py
