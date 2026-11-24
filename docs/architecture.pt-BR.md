@@ -7,11 +7,11 @@ src/simple_phone/
   _native/      binding SWIG do PJSUA2 (gerado por scripts/build_pjsip.sh, compilado pelo setup.py)
   core/         PJSUA2 numa thread: Engine, Endpoint, Account, Call, AMD, parser do trace SIP
   events.py     eventos tipados: CallEvents e PhoneEvents
-  models.py     Settings, Limits, Timeouts, DigestAuth, erros, Report/Stats/Amd
+  models.py     Settings, Limits, Timeouts, erros, Report/Stats/Amd
   phone.py      AsyncPhone e o hub que leva os eventos do core às contas e chamadas
-  call.py       Call: ações, esperas, streams, evidências
+  call.py       Call: ações, esperas, streams
   sync.py       Phone: o AsyncPhone sem await, num loop em thread própria
-  media.py      fontes e destinos, frames de áudio, STT/TTS (Whisper, Piper)
+  media.py      frames de áudio, streams, STT/TTS (Whisper, Piper)
   cli.py        o comando simple-phone
 ```
 

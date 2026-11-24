@@ -6,7 +6,7 @@ Notes for coding agents (and people) working in this repository.
 
 `simple-phone`: a SIP test phone. The Python package bundles PJSUA2 (PJSIP 2.17), compiled into the wheel, and adds an async API (`AsyncPhone`, `Call`, typed events) and a command (`simple-phone`). It targets Linux x86_64 and Python 3.14 only. The license is GPL-2.0-or-later, because PJSIP is linked in.
 
-Read [docs/architecture.md](docs/architecture.md) before changing anything under `src/simple_phone/core/`.
+Read [docs/architecture.md](docs/architecture.md) before changing anything under `src/simple_phone/core/`. The public API is described in [docs/api.md](docs/api.md) and the command in [docs/cli.md](docs/cli.md); update them, and their `.pt-BR.md` copies, with the code.
 
 ## Layout
 
@@ -36,7 +36,8 @@ Run Python with `.venv/bin/python`, not `uv run`. `uv run` may rebuild the nativ
 
 - **Only the engine thread calls PJSUA2.** From the API, use `phone._run(function, *args)` or `call._do(core_function, *args)`. Never keep a native object on the asyncio side; look it up by `ref` on the engine thread.
 - **Native lifetimes are the usual cause of crashes.** Drop a call in its DISCONNECTED callback. Give REFER and Replaces a child `Call`. Delete ports and buddies with `destroy_native`. Keep `getInfo()` results in a variable while you read their vectors.
-- **Events are dataclasses** in `events.py`. The core creates them, and the hub fills `phone` and `call`. A new PJSUA2 callback means a new event type, emitted from the core.
+- **Events are dataclasses** in `events.py`. The core creates them, and the hub fills `phone` and `call`. A new PJSUA2 callback means a new event type, emitted from the core. Add one only when something uses it.
+- **One way to do each thing.** Media is named by the strings of `Settings.media` (`silent`, `echo`, `wav`, `mic`). Handlers are `@phone.on(Type)`. The password is the `password=` argument.
 - **Keep `__init__.py` files to imports.** Code goes in regular modules.
 - **Keep the code simple.** Prefer the stdlib or what the project already has. Add no abstraction before a second caller needs it. The CLI is one file on argparse and rich.
 - **Tests make real calls.** Put new behavior in `tests/test_api.py` with two local accounts on one endpoint. Use `test_asterisk.py` when the behavior needs a PBX.

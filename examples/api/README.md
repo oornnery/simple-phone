@@ -10,9 +10,9 @@ python 01_call.py
 | File | What it shows |
 |---|---|
 | [01_call.py](01_call.py) | `async with phone.call()`, `history`, DTMF, `duration`, the report, `CallFailed` (486), `dial`/`answered`/`hangup` step by step |
-| [02_handlers.py](02_handlers.py) | Receiving calls: `on_*` methods in a subclass, `@phone.on(Type, filter)`, `phone.events()`, early media (183) |
+| [02_handlers.py](02_handlers.py) | Receiving calls: `@phone.on(Type)`, with a filter, `phone.events()`, early media (183) |
 | [03_sip.py](03_sip.py) | Headers, `wait_for(Call.Sip)`, `response`, `trace.flow()` and the ladder; OPTIONS and MESSAGE outside a call; INFO, MESSAGE and UPDATE inside; `dump()` |
-| [04_media.py](04_media.py) | `send(WavFile/Silence/...)`, `receive(Recorder/Speaker)`, `audio()`, `stats()`, `play`, `stream()`, gain, mute, DTMF rfc4733/info/inband |
+| [04_media.py](04_media.py) | `send("wav", file)`, `record(file)`, `audio()`, `stats()`, `play`, `stream()`, gain, mute, DTMF rfc4733/info/inband |
 | [05_call_control.py](05_call_control.py) | Hold, conference, attended and blind transfer, REFER received |
 | [06_amd.py](06_amd.py) | Person, IVR, voicemail or announcement (`amd()`, SIP hints) |
 | [07_dialer.py](07_dialer.py) | `dial_all` within `Limits(max_calls, calls_per_second)`; `PoolTimeout` |
