@@ -82,6 +82,10 @@ class Call(CallEvents):
         return "".join(chars)
 
     @property
+    def dtmf_sent(self):
+        return "".join(e.digits for e in self.timeline if isinstance(e, self.DtmfSent))
+
+    @property
     def dtmf_received(self):
         return "".join(e.digit for e in self.timeline if isinstance(e, self.Dtmf))
 

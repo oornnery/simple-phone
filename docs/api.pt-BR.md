@@ -96,7 +96,7 @@ O que uma chamada sabe:
 | `history`, `response` | As respostas ao nosso INVITE; a final |
 | `report` | Depois da chamada: `answered`, `code`, `connected_seconds`, `mos`, `stats`, `amd`, e tudo em `raw` |
 | `duration` | Segundos conectada até agora |
-| `dtmf_received`, `text_received`, `transcript` | O que chegou |
+| `dtmf_sent`, `dtmf_received`, `text_received`, `transcript` | O que chegou |
 | `timeline` | Todos os eventos da chamada, em ordem |
 
 ## Eventos
