@@ -110,14 +110,17 @@ class Engine:
             now = time.monotonic()
             if now >= next_sample:
                 next_sample = now + self.config.stats_interval
-                for call in list(endpoint.calls.values()):
-                    if call.error:
-                        endpoint.warn(call.error, **call.identity())
-                        call.error = None
-                    call.sample()
-                    if stats := Stats.parse(list(call.streams.values())):
-                        call.emit(C.Stats, stats=stats)
-                call = None
+                self._sample(endpoint)
+
+    def _sample(self, endpoint):
+        """Report call errors and emit Call.Stats for every call."""
+        for call in list(endpoint.calls.values()):
+            if call.error:
+                endpoint.warn(call.error, **call.identity())
+                call.error = None
+            call.sample()
+            if stats := Stats.parse(list(call.streams.values())):
+                call.emit(C.Stats, stats=stats)
 
     def _run_jobs(self):
         while True:

@@ -117,34 +117,42 @@ class Detector:
     # -- layer 2: voice pattern --
 
     def _voice(self, voiced, frame_ms):
-        if voiced:
-            self.silence_run = 0
-            self.voice_run += frame_ms
-            if self.voice_run >= self.min_word_ms and not self.in_word:
-                self.in_word = True
-                self.words += 1
-                if self.words == 1:
-                    self.voice_ms = self.voice_run
-                if self.words >= self.max_words:
-                    return self._decide_voice("machine", f"{self.words} words")
-            elif self.words:
-                self.voice_ms += frame_ms
-            if self.voice_ms >= self.greeting_ms:
-                return self._decide_voice(
-                    "machine", f"greeting longer than {self.greeting_ms}ms"
-                )
-        else:
-            self.silence_run += frame_ms
-            if self.silence_run >= self.between_words_ms:
-                self.in_word, self.voice_run = False, 0
-            if not self.words and self.elapsed >= self.initial_silence_ms:
-                return self._decide_voice("silence", "nobody spoke")
-            if self.words and self.silence_run >= self.after_greeting_silence_ms:
-                return self._decide_voice("human", "short greeting, then waited")
-        if self.elapsed >= self.total_ms:
-            if (self.hints or {}).get("fast_answer"):
-                return self._decide_voice("machine", "unsure, but answered at once")
-            self._decide_voice("unsure", f"no decision in {self.total_ms}ms")
+        verdict = self._heard(frame_ms) if voiced else self._quiet(frame_ms)
+        if verdict is None and self.elapsed >= self.total_ms:
+            verdict = (
+                ("machine", "unsure, but answered at once")
+                if (self.hints or {}).get("fast_answer")
+                else ("unsure", f"no decision in {self.total_ms}ms")
+            )
+        if verdict is not None:
+            self._decide_voice(*verdict)
+
+    def _heard(self, frame_ms):
+        """A voiced frame: count words and greeting length."""
+        self.silence_run = 0
+        self.voice_run += frame_ms
+        if self.voice_run >= self.min_word_ms and not self.in_word:
+            self.in_word = True
+            self.words += 1
+            if self.words == 1:
+                self.voice_ms = self.voice_run
+        elif self.words:
+            self.voice_ms += frame_ms
+        if self.words >= self.max_words:
+            return "machine", f"{self.words} words"
+        if self.voice_ms >= self.greeting_ms:
+            return "machine", f"greeting longer than {self.greeting_ms}ms"
+        return None
+
+    def _quiet(self, frame_ms):
+        """A silent frame: end the word, or decide on how long it stays quiet."""
+        self.silence_run += frame_ms
+        if self.silence_run >= self.between_words_ms:
+            self.in_word, self.voice_run = False, 0
+        if not self.words and self.elapsed >= self.initial_silence_ms:
+            return "silence", "nobody spoke"
+        if self.words and self.silence_run >= self.after_greeting_silence_ms:
+            return "human", "short greeting, then waited"
         return None
 
     def _decide_voice(self, result, reason):

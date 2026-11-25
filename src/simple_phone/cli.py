@@ -283,28 +283,13 @@ def summary(call, error):
     """Print the report; returns the exit status."""
     report = call.report if call is not None else None
     streams = report.raw.get("streams", []) if report else []
-    if isinstance(error, KeyboardInterrupt):
-        result, status, style = "INTERRUPTED", 130, "yellow"
-    elif report is not None and report.answered and streams:
-        result, status, style = "ANSWERED", 0, "green"
-    elif report is not None and report.answered:
-        result, status, style = "NO MEDIA", 1, "red"  # no codec in common
-    else:
-        result, status, style = "FAILED", 1, "red"
+    result, status, style = outcome(report, streams, error)
     table = Table(show_header=False, box=None, padding=(0, 2))
     table.add_row("result", f"[bold {style}]{result}[/]")
     if error is not None and not isinstance(error, KeyboardInterrupt):
         table.add_row("error", f"[red]{error}[/]")
     if report is not None:
-        table.add_row("SIP", f"{report.code} {report.reason}")
-        table.add_row("remote", str(report.raw.get("remote_uri")))
-        table.add_row("call-id", str(report.raw.get("call_id")))
-        table.add_row("answer time", f"{report.answer_time_seconds} s")
-        table.add_row("connected", f"{report.connected_seconds} s")
-        if report.amd:
-            table.add_row("AMD", f"{report.amd.result} ({report.amd.reason})")
-        if call.dtmf_received:
-            table.add_row("DTMF ←", call.dtmf_received)
+        report_rows(table, call, report)
     console.print()
     console.print(table)
     if streams:
@@ -314,6 +299,29 @@ def summary(call, error):
             "jitter need RTCP from the peer; '-' means no sample.[/]"
         )
     return status
+
+
+def outcome(report, streams, error):
+    """(result, exit status, colour) of the call."""
+    if isinstance(error, KeyboardInterrupt):
+        return "INTERRUPTED", 130, "yellow"
+    if report is None or not report.answered:
+        return "FAILED", 1, "red"
+    if not streams:
+        return "NO MEDIA", 1, "red"  # no codec in common
+    return "ANSWERED", 0, "green"
+
+
+def report_rows(table, call, report):
+    table.add_row("SIP", f"{report.code} {report.reason}")
+    table.add_row("remote", str(report.raw.get("remote_uri")))
+    table.add_row("call-id", str(report.raw.get("call_id")))
+    table.add_row("answer time", f"{report.answer_time_seconds} s")
+    table.add_row("connected", f"{report.connected_seconds} s")
+    if report.amd:
+        table.add_row("AMD", f"{report.amd.result} ({report.amd.reason})")
+    if call.dtmf_received:
+        table.add_row("DTMF ←", call.dtmf_received)
 
 
 def streams_table(streams):
@@ -389,30 +397,39 @@ async def doctor(opt, settings, password, network=True):
             console.print(table)
             return 0
         if settings.stun_servers:
-            try:
-                nat = await phone.nat_type(opt.timeout)
-                row("NAT", nat.ok, nat.type if nat.ok else nat.reason)
-            except PhoneError as exc:
-                row("NAT", False, str(exc))
+            await probe(row, "NAT", nat_check(phone, opt.timeout))
         if settings.register:
-            try:
-                await phone.wait_registered(opt.timeout)
-                row("REGISTER", True, str(phone.reg))
-            except PhoneError as exc:
-                row("REGISTER", False, str(exc))
+            await probe(row, "REGISTER", register_check(phone, opt.timeout))
         target = f"sip:{settings.server}:{settings.port}"
-        try:
-            response = await phone.options(target, timeout=opt.timeout)
-            row(
-                f"OPTIONS {target}",
-                # 401/407 is an answer too: PJSUA sends OPTIONS without credentials
-                response.code < 300 or response.code in (401, 407),
-                f"{response.code} {response.reason}",
-            )
-        except PhoneError as exc:
-            row(f"OPTIONS {target}", False, str(exc))
+        await probe(row, f"OPTIONS {target}", options_check(phone, target, opt.timeout))
     console.print(table)
     return 0 if healthy else 1
+
+
+async def probe(row, name, check):
+    """One doctor row from `check`, which returns (ok, text)."""
+    try:
+        ok, text = await check
+    except PhoneError as exc:
+        ok, text = False, str(exc)
+    row(name, ok, text)
+
+
+async def nat_check(phone, timeout):
+    nat = await phone.nat_type(timeout)
+    return nat.ok, nat.type if nat.ok else nat.reason
+
+
+async def register_check(phone, timeout):
+    await phone.wait_registered(timeout)
+    return True, str(phone.reg)
+
+
+async def options_check(phone, target, timeout):
+    response = await phone.options(target, timeout=timeout)
+    # 401/407 is an answer too: PJSUA sends OPTIONS without credentials
+    answered = response.code < 300 or response.code in (401, 407)
+    return answered, f"{response.code} {response.reason}"
 
 
 def main(argv=None):

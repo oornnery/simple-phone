@@ -395,32 +395,42 @@ class AsyncPhone(PhoneEvents):
 
     def _push(self, event):
         if isinstance(event, self.Registration):
-            self.registered = event.active
-            self.reg = f"{event.code} {event.reason}"
-            # PJSUA answers the Digest challenge itself: a 401/407 here is
-            # final (wrong password, or none).
-            if event.code >= 300:
-                self._reg_failure = (event.code, event.reason)
-            self._reg_changed.set()
+            self._registration(event)
         elif isinstance(event, self.Response):
-            waiting = self._pending[event.method]
-            while waiting:
-                future = waiting.popleft()
-                if not future.done():
-                    future.set_result(event)
-                    break
+            self._resolve(event)
         for queue, types in self._listeners:
             if not types or isinstance(event, types):
                 queue.put_nowait(event)
-        handled = False
-        for event_type, filters, handler in self._handlers:
-            if isinstance(event, event_type) and all(
+        handlers = [
+            handler
+            for event_type, filters, handler in self._handlers
+            if isinstance(event, event_type)
+            and all(
                 getattr(event, key, None) == value for key, value in filters.items()
-            ):
-                handled = True
-                self._start(handler, event)
-        if isinstance(event, self.Incoming) and not handled and event.call is not None:
+            )
+        ]
+        for handler in handlers:
+            self._start(handler, event)
+        if isinstance(event, self.Incoming) and not handlers and event.call is not None:
             self._incoming.put_nowait(event.call)
+
+    def _registration(self, event):
+        self.registered = event.active
+        self.reg = f"{event.code} {event.reason}"
+        # PJSUA answers the Digest challenge itself: a 401/407 here is
+        # final (wrong password, or none).
+        if event.code >= 300:
+            self._reg_failure = (event.code, event.reason)
+        self._reg_changed.set()
+
+    def _resolve(self, response):
+        """Hand a Response to the oldest request() still waiting for it."""
+        waiting = self._pending[response.method]
+        while waiting:
+            future = waiting.popleft()
+            if not future.done():
+                future.set_result(response)
+                return
 
     def _start(self, handler, event):
         try:
@@ -535,23 +545,27 @@ class _Hub:
     def dispatch(self, event):
         """A typed event from the core: give it its phone and call."""
         phone = self.phones.get(event.account_id or "")
-        ref, sip_key = event.ref, None
-        if isinstance(event, (CallEvents.Sip, PhoneEvents.Sip)):
-            sip_key = (event.account_id, event.message.call_id)
-        call = (self.calls.get(ref) or self.ended.get(ref)) if ref else None
-        if call is None and ref and isinstance(event, PhoneEvents.Incoming) and phone:
-            call = self.adopt(phone, ref, event.call_id)
-        if call is not None:
-            phone = phone or call.phone
-            events = for_call(event, phone, call)
-            self._deliver(call, events)
-        else:
-            events = [replace(event, phone=phone)] if phone is not None else []
-            if sip_key and not ref:
-                self._hold(sip_key, event)
-        if phone is not None:
-            for typed in events:
-                phone._push(typed)
+        call = self._call_for(event, phone)
+        if call is None:
+            if not event.ref and isinstance(event, (CallEvents.Sip, PhoneEvents.Sip)):
+                self._hold((event.account_id, event.message.call_id), event)
+            if phone is not None:
+                phone._push(replace(event, phone=phone))
+            return
+        phone = phone or call.phone
+        events = for_call(event, phone, call)
+        self._deliver(call, events)
+        for typed in events:
+            phone._push(typed)
+
+    def _call_for(self, event, phone):
+        """The Call an event belongs to; a new one for an incoming call."""
+        if not event.ref:
+            return None
+        call = self.calls.get(event.ref) or self.ended.get(event.ref)
+        if call is None and isinstance(event, PhoneEvents.Incoming) and phone:
+            call = self.adopt(phone, event.ref, event.call_id)
+        return call
 
     def _deliver(self, call, events):
         for event in events:

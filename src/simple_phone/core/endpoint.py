@@ -140,56 +140,54 @@ class Endpoint:
 
     def sip_identity(self, msg):
         """Resolve the local leg, including two local accounts sharing a Call-ID."""
+        owner, ref = self._leg(msg, self._local_owner(msg))
+        if msg.call_id and owner is not None:
+            self.dialogs[(owner, msg.call_id)] = ref
+            if len(self.dialogs) > 2000:
+                self.dialogs.pop(next(iter(self.dialogs)))
+        return {"account_id": owner, "ref": ref}
+
+    def _local_owner(self, msg):
+        """The one local account named in our side's From (or To), or None."""
         local_header = "from" if (msg.is_request == (msg.direction == "TX")) else "to"
         match = re.search(
             r"sips?:([^@<>;\s]+)@([^:;>\s]+)", msg.headers.get(local_header, "")
         )
+        if not match:
+            return None
         owners = [
             a.account_id
             for a in self.accounts.values()
-            if match
-            and a.config.user == match[1]
-            and a.config.domain.lower() == match[2].lower()
+            if a.config.user == match[1] and a.config.domain.lower() == match[2].lower()
         ]
-        owner = owners[0] if len(owners) == 1 else None
+        return owners[0] if len(owners) == 1 else None
+
+    def _leg(self, msg, owner):
+        """(account_id, call ref) of a message; `owner` may be None (unknown)."""
+        incoming_invite = msg.direction == "RX" and msg.method == "INVITE"
+        if msg.direction == "TX" and msg.method == "INVITE":
+            pending = self.calls.get(self.dialing)
+            if pending is not None:
+                return pending.account_id, pending.ref
         calls = [
             c
             for c in self.calls.values()
             if c.last.get("call_id") == msg.call_id
             and (owner is None or c.account_id == owner)
         ]
-        pending = (
-            self.calls.get(self.dialing)
-            if msg.direction == "TX" and msg.method == "INVITE"
-            else None
-        )
-        ref = None
-        if pending is not None:
-            owner, ref = pending.account_id, pending.ref
-        elif len(calls) == 1 and not (
-            owner is None
-            and msg.direction == "RX"
-            and msg.method == "INVITE"
-            and ";tag=" not in msg.headers.get("to", "")
-        ):
-            owner, ref = calls[0].account_id, calls[0].ref
-        elif owner is not None:
-            ref = self.dialogs.get((owner, msg.call_id))
-        else:
-            known = [
-                (account, reference)
-                for (account, cid), reference in self.dialogs.items()
-                if cid == msg.call_id
-            ]
-            if len(known) == 1 and not (
-                msg.direction == "RX" and msg.method == "INVITE"
-            ):
-                owner, ref = known[0]
-        if msg.call_id and owner is not None:
-            self.dialogs[(owner, msg.call_id)] = ref
-            if len(self.dialogs) > 2000:
-                self.dialogs.pop(next(iter(self.dialogs)))
-        return {"account_id": owner, "ref": ref}
+        untagged = incoming_invite and ";tag=" not in msg.headers.get("to", "")
+        if len(calls) == 1 and (owner is not None or not untagged):
+            return calls[0].account_id, calls[0].ref
+        if owner is not None:
+            return owner, self.dialogs.get((owner, msg.call_id))
+        known = [
+            (account, ref)
+            for (account, call_id), ref in self.dialogs.items()
+            if call_id == msg.call_id
+        ]
+        if len(known) == 1 and not incoming_invite:
+            return known[0]
+        return None, None
 
     def __enter__(self):
         try:
@@ -246,33 +244,11 @@ class Endpoint:
         if not self.created:
             return
         try:
-            for call in list(self.calls.values()):
-                call.release_media()
-                if not call.ended_at and call.getId() >= 0:
-                    try:
-                        call.hangup(pj.CallOpParam())
-                    except pj.Error as error:
-                        self.warn(error.info())
-            call = None
-            deadline = time.monotonic() + 5
-            while (
-                any(not c.ended_at for c in self.calls.values())
-                and time.monotonic() < deadline
-            ):
-                self.poll()
-            self.calls.clear()
+            # Each step runs in its own method so no local keeps a native
+            # object alive past gc.collect().
+            self._end_calls()
             gc.collect()
-            for account in self.accounts.values():
-                try:
-                    account.drop_buddies()
-                    if account.registered:
-                        account.setRegistration(False)
-                        self.poll(0.1)
-                    account.shutdown()
-                except pj.Error as error:
-                    self.warn(error.info())
-            account = None
-            self.accounts.clear()
+            self._close_accounts()
             gc.collect()
         finally:
             self.lib.libDestroy()
@@ -285,6 +261,36 @@ class Endpoint:
             if self.writer is not None:
                 self.writer.endpoint = None
             self.writer = None
+
+    def _end_calls(self, wait=5):
+        """Hang up every call and give them `wait` seconds to end."""
+        for call in list(self.calls.values()):
+            call.release_media()
+            if not call.ended_at and call.getId() >= 0:
+                try:
+                    call.hangup(pj.CallOpParam())
+                except pj.Error as error:
+                    self.warn(error.info())
+        deadline = time.monotonic() + wait
+        while (
+            any(not c.ended_at for c in self.calls.values())
+            and time.monotonic() < deadline
+        ):
+            self.poll()
+        self.calls.clear()
+
+    def _close_accounts(self):
+        """Drop buddies, unregister and shut down every account."""
+        for account in self.accounts.values():
+            try:
+                account.drop_buddies()
+                if account.registered:
+                    account.setRegistration(False)
+                    self.poll(0.1)
+                account.shutdown()
+            except pj.Error as error:
+                self.warn(error.info())
+        self.accounts.clear()
 
     def poll(self, seconds=0.0, step_ms=50):
         deadline = time.monotonic() + seconds

@@ -70,15 +70,13 @@ class Call(CallEvents):
     @property
     def text_received(self):
         """RTT received so far (Call.Text), with backspaces applied."""
+        received = "".join(e.text for e in self.timeline if isinstance(e, self.Text))
         chars = []
-        for event in self.timeline:
-            if isinstance(event, self.Text):
-                for char in event.text:
-                    if char == "\b":
-                        if chars:
-                            chars.pop()
-                    else:
-                        chars.append(char)
+        for char in received:
+            if char != "\b":
+                chars.append(char)
+            elif chars:
+                chars.pop()
         return "".join(chars)
 
     @property
@@ -255,29 +253,26 @@ class Call(CallEvents):
         if tts is None:
             raise PhoneError("say() needs a TTS: AsyncPhone(..., tts=PiperTTS())")
         talking = asyncio.ensure_future(self._speech_started()) if interrupt else None
-
-        def interrupted(stream):
-            if talking is not None and talking.done():
-                stream.clear()  # barge-in: drop what was not said yet
-                return True
-            return False
-
-        stream = None
+        self.transcript.append(("local", text))
         try:
-            self.transcript.append(("local", text))
-            async for frame in tts.synthesize(text):
-                stream = await self.stream(frame.rate)
-                stream.write(frame)
-                if interrupted(stream):
-                    return False
-            while stream is not None and stream.pending > 0:
-                if self.report is not None or interrupted(stream):
-                    return False
-                await asyncio.sleep(0.02)
-            return True
+            return await self._speak(tts, text, talking)
         finally:
             if talking is not None:
                 talking.cancel()
+
+    async def _speak(self, tts, text, talking):
+        """Stream the TTS into the call; False if `talking` or the end cut it."""
+        stream = None
+        async for frame in tts.synthesize(text):
+            stream = await self.stream(frame.rate)
+            stream.write(frame)
+            if barged_in(talking, stream):
+                return False
+        while stream is not None and stream.pending > 0:
+            if self.report is not None or barged_in(talking, stream):
+                return False
+            await asyncio.sleep(0.02)
+        return True
 
     async def _speech_started(self, min_ms=300, voice_rms=400):
         voiced = 0.0
@@ -365,20 +360,11 @@ class Call(CallEvents):
         async def scan():
             index = self._cursors.get(event_type, 0)
             while True:
-                while index < len(self.timeline):
-                    event = self.timeline[index]
+                for event in self.timeline[index:]:
                     index += 1
-                    if isinstance(event, event_type) and (
-                        predicate is None or predicate(event)
-                    ):
+                    if self._is_wanted(event, event_type, predicate, fail_on_end):
                         self._cursors[event_type] = index
                         return event
-                    if (
-                        fail_on_end
-                        and isinstance(event, self.StateChanged)
-                        and event.state == "DISCONNECTED"
-                    ):
-                        raise CallFailed(event.code, event.reason, event_type.__name__)
                 self._changed.clear()
                 await self._changed.wait()
 
@@ -386,6 +372,18 @@ class Call(CallEvents):
             return await asyncio.wait_for(scan(), timeout)
         except TimeoutError:
             raise WaitTimeout(event_type.__name__, timeout, self.state) from None
+
+    def _is_wanted(self, event, event_type, predicate, fail_on_end):
+        """True for the event wait_for() wants; CallFailed if the call ended first."""
+        if isinstance(event, event_type) and (predicate is None or predicate(event)):
+            return True
+        if (
+            fail_on_end
+            and isinstance(event, self.StateChanged)
+            and event.state == "DISCONNECTED"
+        ):
+            raise CallFailed(event.code, event.reason, event_type.__name__)
+        return False
 
     async def answered(self, timeout=None):
         """Wait for 200 OK + ACK. Raises CallFailed with the SIP code."""
@@ -458,3 +456,11 @@ class Call(CallEvents):
                     await self._do(Native.remove_tap, token, live=False)
                 except PhoneError:
                     pass
+
+
+def barged_in(talking, stream):
+    """True once the far end started talking; drops what was not said yet."""
+    if talking is None or not talking.done():
+        return False
+    stream.clear()
+    return True
