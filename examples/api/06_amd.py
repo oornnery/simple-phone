@@ -1,14 +1,12 @@
 """Who answered: a person, an IVR, voicemail or an announcement (AMD). For an
 IVR, pick an option and record the reply. The far end plays a long greeting."""
 
-import array
 import asyncio
-import random
 import tempfile
-import wave
 from pathlib import Path
 
 from simple_phone import AsyncPhone
+from simple_phone.media import noise, save_wav
 
 FOLDER = Path(tempfile.gettempdir()) / "simple-phone-examples"
 MEANING = {
@@ -21,22 +19,9 @@ MEANING = {
 }
 
 
-def greeting_wav(seconds=6, rate=8000):
-    """Noise at speech level: what the AMD hears as someone talking."""
-    FOLDER.mkdir(exist_ok=True)
-    path = FOLDER / "greeting.wav"
-    rng = random.Random(1)
-    samples = array.array("h", (int(rng.gauss(0, 3000)) for _ in range(rate * seconds)))
-    with wave.open(str(path), "wb") as out:
-        out.setnchannels(1)
-        out.setsampwidth(2)
-        out.setframerate(rate)
-        out.writeframes(samples.tobytes())
-    return path
-
-
 async def main():
-    greeting = greeting_wav()
+    FOLDER.mkdir(exist_ok=True)
+    greeting = save_wav(FOLDER / "greeting.wav", noise(6))  # 6 s of "talking"
     answer_file = FOLDER / "option-1.wav"
 
     async with AsyncPhone(server="127.0.0.1", user="1001", register=False) as phone:

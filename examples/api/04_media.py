@@ -6,40 +6,20 @@ Receive: record(file) saves it; speaker() plays it on the sound card. With a
 sound card, use send("mic") and speaker() to talk for real.
 """
 
-import array
 import asyncio
-import math
 import tempfile
-import wave
 from pathlib import Path
 
 from simple_phone import AsyncPhone, Call
-from simple_phone.media import AudioFrame, rms
+from simple_phone.media import AudioFrame, rms, save_wav, tone
 
 FOLDER = Path(tempfile.gettempdir()) / "simple-phone-examples"
 
 
-def tone(hz, seconds, rate=8000):
-    """A sine wave as 16-bit mono PCM."""
-    count = int(rate * seconds)
-    wave_ = (int(8000 * math.sin(2 * math.pi * hz * i / rate)) for i in range(count))
-    return array.array("h", wave_).tobytes()
-
-
-def save_wav(name, pcm, rate=8000):
-    FOLDER.mkdir(exist_ok=True)
-    path = FOLDER / name
-    with wave.open(str(path), "wb") as out:
-        out.setnchannels(1)
-        out.setsampwidth(2)
-        out.setframerate(rate)
-        out.writeframes(pcm)
-    return path
-
-
 async def main():
-    beep = save_wav("beep.wav", tone(880, 0.3))
-    music = save_wav("tone.wav", tone(440, 1.0))
+    FOLDER.mkdir(exist_ok=True)
+    beep = save_wav(FOLDER / "beep.wav", tone(880, 0.3))
+    music = save_wav(FOLDER / "tone.wav", tone(440, 1.0))
     received = FOLDER / "received.wav"
 
     async with AsyncPhone(server="127.0.0.1", user="1001", register=False) as phone:

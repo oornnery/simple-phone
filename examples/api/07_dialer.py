@@ -6,30 +6,13 @@ same time, and new calls per second. dial() waits for a slot up to
 Timeouts.pool.
 """
 
-import array
 import asyncio
-import random
 import tempfile
-import wave
 from itertools import count
 from pathlib import Path
 
 from simple_phone import AsyncPhone, CallFailed, Limits, PoolTimeout, Timeouts
-
-
-def greeting_wav(seconds=6, rate=8000):
-    """Noise at speech level: what the AMD hears as someone talking."""
-    folder = Path(tempfile.gettempdir()) / "simple-phone-examples"
-    folder.mkdir(exist_ok=True)
-    path = folder / "greeting.wav"
-    rng = random.Random(1)
-    samples = array.array("h", (int(rng.gauss(0, 3000)) for _ in range(rate * seconds)))
-    with wave.open(str(path), "wb") as out:
-        out.setnchannels(1)
-        out.setsampwidth(2)
-        out.setframerate(rate)
-        out.writeframes(samples.tobytes())
-    return path
+from simple_phone.media import noise, save_wav
 
 
 async def classify(call):
@@ -42,7 +25,7 @@ async def classify(call):
 
 
 async def main():
-    greeting = greeting_wav()
+    greeting = save_wav(Path(tempfile.gettempdir()) / "greeting.wav", noise(6))
     limits = Limits(max_calls=2, calls_per_second=4)
     async with AsyncPhone(
         server="127.0.0.1", user="1001", register=False, limits=limits
