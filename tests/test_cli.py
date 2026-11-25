@@ -61,6 +61,17 @@ class ArgumentsTest(unittest.TestCase):
         with self.assertRaises(ValueError):  # an extension says nothing of the server
             cli.settings_from(cli.parse_args(["options", "1002"]))
 
+    def test_a_typo_names_the_typo(self):
+        for argv, expected in (
+            (["--verion"], "unrecognized arguments: --verion"),
+            (["optins"], "maybe you meant 'options'"),
+            ([], "choose a command"),
+        ):
+            errors = io.StringIO()
+            with contextlib.redirect_stderr(errors), self.assertRaises(SystemExit):
+                cli.parse_args(argv)
+            self.assertIn(expected, errors.getvalue())
+
     def test_bad_input(self):
         with self.assertRaises(ValueError):
             cli.settings_from(cli.parse_args(["call", "1", "--server", "x"]))

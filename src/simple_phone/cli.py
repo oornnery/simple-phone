@@ -1,7 +1,9 @@
-"""simple-phone: make or answer one SIP call from the terminal.
+"""simple-phone: a SIP phone for testing, from the terminal.
 
     simple-phone call 1002 --server pbx.example.com --user 1001
     simple-phone answer --profile account.json --media echo
+    simple-phone options pbx.example.com
+    simple-phone message 1002@pbx.example.com hello
     simple-phone doctor --profile account.json
     simple-phone devices
 
@@ -9,8 +11,8 @@ The password comes from $SIP_PASSWORD (or the profile's password_env), or
 is asked on the terminal. Any Settings field not covered by a flag can be
 set with --set name=value or in a JSON profile.
 
-Exit status of call/answer: 0 answered with audio, 1 anything else,
-130 interrupted.
+Exit status: call/answer 0 answered with audio, 1 anything else;
+options/message 0 on any response, 1 on none; 130 interrupted.
 """
 
 from __future__ import annotations
@@ -120,13 +122,16 @@ def parse_args(argv=None):
         prog="simple-phone",
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        suggest_on_error=True,  # 'optins' -> did you mean 'options'?
     )
     parser.add_argument(
         "--version",
         action="version",
         version=f"simple-phone {__version__} (PJSIP {PJSIP_VERSION})",
     )
-    commands = parser.add_subparsers(dest="command", required=True)
+    # Not required=True: then a typo such as --verion would be reported as a
+    # missing command instead of an unknown option.
+    commands = parser.add_subparsers(dest="command", metavar="command")
     call = commands.add_parser("call", parents=[common], help="dial and report")
     options = commands.add_parser(
         "options", parents=[common], help="send OPTIONS, print the response"
@@ -171,6 +176,8 @@ def parse_args(argv=None):
     commands.add_parser("devices", help="audio devices")
 
     opt = parser.parse_args(argv)
+    if opt.command is None:
+        parser.error("choose a command: " + ", ".join(commands.choices))
     if any(":" not in h for h in getattr(opt, "header", [])):
         parser.error("--header must look like 'Name: value'")
     return opt
