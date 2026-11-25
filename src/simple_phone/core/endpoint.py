@@ -318,6 +318,16 @@ class Endpoint:
         if not uses_card:
             devices.setNullDev()
         else:
+            # PJSUA takes any index here and then sends silence: check it.
+            count = devices.getDevCount()
+            for name, index in (
+                ("capture_device", capture),
+                ("playback_device", playback),
+            ):
+                if index is not None and not 0 <= index < count:
+                    raise ValueError(
+                        f"{name}={index}: no such audio device (see simple-phone devices)"
+                    )
             devices.setCaptureDev(DEFAULT_CAPTURE if capture is None else capture)
             devices.setPlaybackDev(DEFAULT_PLAYBACK if playback is None else playback)
         self.audio = wanted

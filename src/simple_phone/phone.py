@@ -111,12 +111,20 @@ class AsyncPhone(PhoneEvents):
         self._hub = _Hub(engine, asyncio.get_running_loop(), self.limits)
         self._hub.phones[self.account_id] = self
         try:
-            await asyncio.to_thread(engine.start)
+            await self._boot(engine)
             await self._ready()
         except BaseException:
             await self.close()
             raise
         return self
+
+    async def _boot(self, engine):
+        """Start PJSIP on its thread. A failure there (port in use, unknown
+        codec or audio device...) becomes a PhoneError."""
+        try:
+            await asyncio.to_thread(engine.start)
+        except (RuntimeError, TimeoutError) as exc:
+            raise PhoneError(str(exc)) from exc
 
     async def __aexit__(self, *exc):
         await self.close()
@@ -222,7 +230,11 @@ class AsyncPhone(PhoneEvents):
                 self._reg_changed.clear()
                 await self._reg_changed.wait()
 
-        await asyncio.wait_for(until(), timeout or self.timeouts.register)
+        timeout = timeout or self.timeouts.register
+        try:
+            await asyncio.wait_for(until(), timeout)
+        except TimeoutError:
+            raise WaitTimeout("unREGISTER", timeout, self.reg) from None
 
     # -- calls --
 

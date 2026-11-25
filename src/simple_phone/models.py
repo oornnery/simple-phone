@@ -74,7 +74,8 @@ class CallFailed(PhoneError):
 
 class WaitTimeout(PhoneError, TimeoutError):
     def __init__(self, waiting_for, timeout, state=None):
-        super().__init__(f"{waiting_for}: nothing within {timeout:g}s (state {state})")
+        where = f" (state {state})" if state else ""
+        super().__init__(f"{waiting_for}: nothing within {timeout:g}s{where}")
         self.waiting_for, self.timeout, self.state = waiting_for, timeout, state
 
 
