@@ -15,6 +15,16 @@ Exit status of call/answer: 0 answered with audio, 1 anything else,
 
 from __future__ import annotations
 
+# Python 3.15+ (PEP 810): --help and --version skip PJSIP and asyncio.
+__lazy_modules__ = [
+    "asyncio",
+    "getpass",
+    "json",
+    "rich.table",
+    "simple_phone.call",
+    "simple_phone.phone",
+]
+
 import argparse
 import asyncio
 import contextlib
