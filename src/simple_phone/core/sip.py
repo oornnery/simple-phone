@@ -22,15 +22,27 @@ _TRACE = re.compile(
     r"(?P<raw>.*?)(?P<end>\r?\n--end msg--|\Z)",
     re.DOTALL,
 )
-_COMPACT = {
-    "i": "call-id",
-    "f": "from",
-    "t": "to",
-    "v": "via",
-    "m": "contact",
+_COMPACT = {  # RFC 3261 and the RFCs that added a compact form
+    "a": "accept-contact",
+    "b": "referred-by",
     "c": "content-type",
-    "l": "content-length",
+    "d": "request-disposition",
+    "e": "content-encoding",
+    "f": "from",
+    "i": "call-id",
+    "j": "reject-contact",
     "k": "supported",
+    "l": "content-length",
+    "m": "contact",
+    "n": "identity-info",
+    "o": "event",
+    "r": "refer-to",
+    "s": "subject",
+    "t": "to",
+    "u": "allow-events",
+    "v": "via",
+    "x": "session-expires",
+    "y": "identity",
 }
 
 
