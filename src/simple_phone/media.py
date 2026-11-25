@@ -6,6 +6,7 @@
     stream = await call.stream(rate=16000)   # Python-fed source
     await call.say("Hello")                  # TTS through a stream
     text = await call.listen()               # next utterance, via STT
+    save_wav("beep.wav", tone(880, 0.3))     # test audio: tone, noise, silence
 
 Speech engines are protocols: anything with `async transcribe(pcm, rate)`
 (STT) or `synthesize(text)` yielding AudioFrames (TTS). WhisperSTT
@@ -16,9 +17,12 @@ from __future__ import annotations
 
 import array
 import asyncio
+import math
 import os
+import random
 import sys
 import time
+import wave
 from collections import deque
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
@@ -83,6 +87,44 @@ def rms(pcm):
     if sys.byteorder == "big":
         samples.byteswap()
     return (sum(x * x for x in samples) / len(samples)) ** 0.5 if samples else 0.0
+
+
+# -- test audio: 16-bit mono PCM bytes, to send, stream or save as WAV --
+
+
+def tone(hz, seconds, *, rate=8000, volume=8000) -> bytes:
+    """A sine wave: a beep, a test tone, a SIT tone."""
+    step = 2 * math.pi * hz / rate
+    return _pcm(volume * math.sin(step * i) for i in range(round(rate * seconds)))
+
+
+def noise(seconds, *, rate=8000, level=3000, seed=1) -> bytes:
+    """Noise as loud as speech but with no pitch: the AMD and listen() take
+    it for someone talking."""
+    rng = random.Random(seed)
+    return _pcm(rng.gauss(0, level) for _ in range(round(rate * seconds)))
+
+
+def silence(seconds, *, rate=8000) -> bytes:
+    return bytes(2 * round(rate * seconds))
+
+
+def save_wav(path, pcm, rate=8000) -> Path:
+    """Write PCM to a WAV file, e.g. for call.send("wav", path)."""
+    path = Path(path)
+    with wave.open(str(path), "wb") as out:
+        out.setnchannels(1)
+        out.setsampwidth(2)
+        out.setframerate(rate)
+        out.writeframes(pcm)
+    return path
+
+
+def _pcm(values):
+    samples = array.array("h", (max(-32768, min(32767, int(v))) for v in values))
+    if sys.byteorder == "big":
+        samples.byteswap()
+    return samples.tobytes()
 
 
 class Segmenter:

@@ -1,51 +1,24 @@
-import array
 import asyncio
-import random
 import tempfile
 import unittest
 import wave
 from pathlib import Path
 
 from simple_phone import AsyncPhone, Settings
-from simple_phone.media import (
-    AudioFrame,
-    Segmenter,
-    rms,
-)
+from simple_phone.media import AudioFrame, Segmenter, noise, rms, save_wav, silence
 
-RATE, FRAME = 8000, 160
-
-
-def speech(ms, seed=1, rate=RATE):
-    rng = random.Random(seed)
-    return [int(rng.gauss(0, 3000)) for _ in range(rate * ms // 1000)]
-
-
-def silence(ms, rate=RATE):
-    return [0] * (rate * ms // 1000)
-
-
-def pcm(samples):
-    return array.array("h", samples).tobytes()
-
-
-def write_wav(path, samples):
-    with wave.open(str(path), "wb") as out:
-        out.setnchannels(1)
-        out.setsampwidth(2)
-        out.setframerate(RATE)
-        out.writeframes(pcm(samples))
+RATE, FRAME = 8000, 320  # FRAME: bytes in 20 ms
 
 
 class SegmenterTest(unittest.TestCase):
     def test_splits_on_pauses_and_drops_clicks(self):
-        audio = speech(900) + silence(300) + speech(400) + silence(900)
-        audio += speech(100) + silence(900)  # a click: too short
-        audio += speech(600, seed=2) + silence(900)
+        audio = noise(0.9) + silence(0.3) + noise(0.4) + silence(0.9)
+        audio += noise(0.1) + silence(0.9)  # a click: too short
+        audio += noise(0.6, seed=2) + silence(0.9)
         segmenter = Segmenter()
         found = []
         for i in range(0, len(audio), FRAME):
-            if piece := segmenter.feed(pcm(audio[i : i + FRAME])):
+            if piece := segmenter.feed(audio[i : i + FRAME]):
                 found.append(len(piece) / 2 / RATE)
         self.assertEqual(len(found), 2)  # the 300 ms pause did not split
         # speech, the short pause, speech, then the 700 ms of silence that ended it
@@ -55,9 +28,9 @@ class SegmenterTest(unittest.TestCase):
 class FlushTest(unittest.TestCase):
     def test_the_last_utterance_is_kept_when_the_audio_ends(self):
         segmenter = Segmenter()
-        audio = speech(600)  # speech, then the call ends: no closing silence
+        audio = noise(0.6)  # speech, then the call ends: no closing silence
         for i in range(0, len(audio), FRAME):
-            self.assertIsNone(segmenter.feed(pcm(audio[i : i + FRAME])))
+            self.assertIsNone(segmenter.feed(audio[i : i + FRAME]))
         self.assertAlmostEqual(len(segmenter.flush()) / 2 / RATE, 0.6, delta=0.03)
         self.assertIsNone(segmenter.flush())
 
@@ -68,10 +41,10 @@ class FakeTTS:
 
     async def synthesize(self, text):
         self.said.append(text)
-        samples = speech(int(self.seconds * 1000), rate=self.rate)
-        half = len(samples) // 2  # two "sentences", like Piper
-        yield AudioFrame(pcm(samples[:half]), self.rate)
-        yield AudioFrame(pcm(samples[half:]), self.rate)
+        pcm = noise(self.seconds, rate=self.rate)
+        half = len(pcm) // 4 * 2  # two "sentences", like Piper
+        yield AudioFrame(pcm[:half], self.rate)
+        yield AudioFrame(pcm[half:], self.rate)
 
 
 class FakeSTT:
@@ -109,7 +82,7 @@ class MediaTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.folder = Path(tempfile.mkdtemp())
         self.noise = self.folder / "noise.wav"
-        write_wav(self.noise, speech(3000))
+        save_wav(self.noise, noise(3))
         self.tts = FakeTTS()
         self.phone = AsyncPhone(local("1001", "a", 47400), tts=self.tts, stt=FakeSTT())
         await self.phone.__aenter__()
@@ -139,7 +112,7 @@ class MediaTest(unittest.IsolatedAsyncioTestCase):
         async with self.phone.call(self.other.uri) as call:
             await self.incoming.record(recorded)
             stream = await call.stream(rate=16000)
-            stream.write(pcm(speech(1000, rate=16000)))
+            stream.write(noise(1, rate=16000))
             self.assertGreater(await loudness(self.incoming, 0.5), 1000)
             stream.clear()  # drops the rest
             await asyncio.sleep(0.2)
@@ -177,7 +150,7 @@ class MediaTest(unittest.IsolatedAsyncioTestCase):
             await asyncio.sleep(0.6)  # the 9 left over arrives
             self.assertEqual(await self.incoming.gather(timeout=0.3), "")  # nothing
 
-            write_wav(self.noise, silence(200) + speech(800) + silence(1500))
+            save_wav(self.noise, silence(0.2) + noise(0.8) + silence(1.5))
             listening = asyncio.ensure_future(call.listen(timeout=5))
             await self.incoming.send("wav", self.noise)
             self.assertRegex(await listening, r"s of speech$")

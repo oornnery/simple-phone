@@ -186,6 +186,15 @@ async for stats in call.stats():  # estatísticas RTP, uma vez por segundo
     ...
 ```
 
+Áudio de teste, em PCM 16 bits mono a 8 kHz. `noise()` é tão alto quanto a fala, mas não tem tom, então o AMD e o `listen()` o tomam por alguém falando:
+
+```python
+from simple_phone.media import noise, save_wav, silence, tone
+
+pcm = tone(1000, 0.5) + silence(0.2) + noise(2)
+await call.send("wav", save_wav("teste.wav", pcm))
+```
+
 Com motores de voz:
 
 ```python
