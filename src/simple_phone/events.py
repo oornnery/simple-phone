@@ -1,17 +1,15 @@
 """Typed events, grouped like Textual messages: Call.Dtmf, Phone.Incoming...
 
 Every event has `at` (epoch seconds), `phone` and `call` (None for account
-events). The core creates them; the API fills in `phone` and `call`. Handlers are found by type
-(`@phone.on(Call.Dtmf)`) or by name in a subclass (`on_call_dtmf`), like
-Textual's `on_button_pressed`.
+events). The core creates them; the API fills in `phone` and `call`.
+Handlers are found by type: `@phone.on(Call.Dtmf)`.
 """
 
 from __future__ import annotations
 
-import re
 import time
 from dataclasses import dataclass, field
-from typing import Any, ClassVar
+from typing import Any
 
 from .core.sip import SipMessage
 from .models import Amd, Report, Stats
@@ -27,21 +25,13 @@ class Event:
     ref: str | None = field(default=None, repr=False)
     call_id: str | None = field(default=None, repr=False)
 
-    namespace: ClassVar[str] = ""
-    handler_name: ClassVar[str] = ""
-
-    def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
-        snake = re.sub(r"(?<!^)(?=[A-Z])", "_", cls.__name__).lower()
-        cls.handler_name = f"on_{cls.namespace}_{snake}"
-
 
 class CallEvent(Event):
-    namespace = "call"
+    """Belongs to one call."""
 
 
 class PhoneEvent(Event):
-    namespace = "phone"
+    """Belongs to an account, outside any call."""
 
 
 class CallEvents:
@@ -130,21 +120,6 @@ class CallEvents:
         content_type: str
         body: str
 
-    @dataclass(kw_only=True)
-    class AudioChanged(CallEvent):
-        muted: bool
-        microphone: float
-        speaker: float
-
-    @dataclass(kw_only=True)
-    class Recording(CallEvent):
-        path: str | None
-
-    @dataclass(kw_only=True)
-    class Insight(CallEvent):  # what an observing agent concluded from `text`
-        text: str
-        output: Any
-
 
 class PhoneEvents:
     """Events of a phone (an account). Reached as Phone.<Name> or
@@ -159,16 +134,6 @@ class PhoneEvents:
         code: int
         reason: str
         active: bool
-
-    @dataclass(kw_only=True)
-    class Registered(PhoneEvent):
-        code: int
-        reason: str
-
-    @dataclass(kw_only=True)
-    class RegistrationFailed(PhoneEvent):
-        code: int
-        reason: str
 
     @dataclass(kw_only=True)
     class Sip(PhoneEvent):  # outside a call: REGISTER, OPTIONS, MESSAGE...
@@ -222,18 +187,10 @@ class PhoneEvents:
         reason: str
 
     @dataclass(kw_only=True)
-    class AccountChanged(PhoneEvent):
-        action: str  # added, updated, removed
-
-    @dataclass(kw_only=True)
     class Log(PhoneEvent):
         level: int
         text: str
 
     @dataclass(kw_only=True)
     class Warning(PhoneEvent):
-        text: str
-
-    @dataclass(kw_only=True)
-    class Info(PhoneEvent):
         text: str

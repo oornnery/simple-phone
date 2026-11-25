@@ -297,9 +297,9 @@ class Endpoint:
         opt = opt or self.config
         needs_card = (
             opt.media == "mic"
-            or opt.listen
+            or opt.speaker
             or any(
-                c.config.media == "mic" or c.config.listen
+                c.config.media == "mic" or c.config.speaker
                 for c in self.calls.values()
                 if not c.ended_at
             )
@@ -320,7 +320,7 @@ class Endpoint:
         allowed = {
             "media",
             "wav",
-            "listen",
+            "speaker",
             "record",
             "capture_device",
             "playback_device",
@@ -353,10 +353,10 @@ class Endpoint:
     def handle_ip_change(self):
         self.lib.handleIpChange(pj.IpChangeParam())
 
-    def validate_account(self, opt, replacing=None):
+    def validate_account(self, opt):
         if not opt.account_id or any(c.isspace() for c in opt.account_id):
             raise ValueError("account_id must be nonempty, without spaces")
-        if opt.account_id in self.accounts and opt.account_id != replacing:
+        if opt.account_id in self.accounts:
             raise ValueError(f"Account already exists: {opt.account_id}")
         shared = sorted(
             key
@@ -368,8 +368,6 @@ class Endpoint:
                 f"{', '.join(shared)}: shared by all accounts, set on the first one"
             )
         for account in self.accounts.values():
-            if account.account_id == replacing:
-                continue
             if abs(account.config.rtp_port - opt.rtp_port) < 102:
                 raise ValueError(
                     "Accounts need separate RTP/RTCP port ranges (at least 102 ports apart)"
@@ -417,29 +415,7 @@ class Endpoint:
             account.shutdown()
             del self.accounts[opt.account_id]
             raise
-        self.emit(P.AccountChanged, action="added", account_id=opt.account_id)
         return opt.account_id
-
-    def update_account(self, config, password=None):
-        account = self.accounts[config.account_id]
-        self.reap()
-        if any(c.account_id == config.account_id for c in self.calls.values()):
-            raise RuntimeError("End this account's calls before editing it")
-        self.validate_account(config, replacing=config.account_id)
-        secret = password if password is not None else account.password
-        native = self.account_config(config, secret)
-        previous = account.config
-        account.config = config
-        try:
-            account.modify(native)
-        except pj.Error:
-            account.config = previous
-            raise
-        account.password = secret
-        if not config.register and account.registered:
-            account.setRegistration(False)
-        self.emit(P.AccountChanged, action="updated", account_id=config.account_id)
-        return config.account_id
 
     def account_for(self, account_id=None):
         account = self.accounts[account_id] if account_id else self.account

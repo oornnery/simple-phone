@@ -2,11 +2,12 @@ import asyncio
 import contextlib
 import time
 import unittest
-from dataclasses import replace
+from dataclasses import dataclass, replace
 
 from simple_phone import (
     AsyncPhone,
     Call,
+    CallEvent,
     CallFailed,
     Limits,
     Phone,
@@ -43,11 +44,11 @@ async def until(condition, timeout=5):
             await asyncio.sleep(0.02)
 
 
-class Answering(AsyncPhone):
-    """Handlers as methods, like Textual: on_<namespace>_<event>."""
+@dataclass(kw_only=True)
+class Note(CallEvent):
+    """An event of the application's own, for call.emit()."""
 
-    async def on_phone_incoming(self, event):
-        await event.call.answer(media="echo")
+    text: str
 
 
 class ApiTest(unittest.IsolatedAsyncioTestCase):
@@ -206,14 +207,14 @@ class ApiTest(unittest.IsolatedAsyncioTestCase):
             await event.call.answer(media="echo")
 
         seen = []
-        self.phone.on(Call.Insight)(seen.append)
+        self.phone.on(Note)(seen.append)
         async with self.phone.call(third.uri) as call:
             self.assertTrue((await call.hold()).held)
             self.assertFalse((await call.unhold()).held)  # right after hold()
-            call.emit(Call.Insight(text="olá", output="greeting"))
-            event = await call.wait_for(Call.Insight)
+            call.emit(Note(text="olá"))
+            event = await call.wait_for(Note)
         self.assertIs(event.call, call)
-        self.assertEqual([e.output for e in seen], ["greeting"])
+        self.assertEqual([e.text for e in seen], ["olá"])
         self.assertIn("PRACK", call.trace.flow())  # c requires 100rel
         self.assertIn("session-expires", call.response.headers)
 
@@ -252,7 +253,6 @@ class ApiTest(unittest.IsolatedAsyncioTestCase):
             self.assertIn("m=text", sdp)
             await call.send_text("olx\ba")
             await until(lambda: answered[0].text_received == "ola")
-        self.assertEqual(answered[0].evidence.text_received, "ola")
 
     async def test_no_text_stream_by_default(self):
         await self.answer_with_echo()
@@ -323,13 +323,14 @@ class ApiTest(unittest.IsolatedAsyncioTestCase):
         self.assertIsInstance(results[1][1], WaitTimeout)
 
 
-class SubclassTest(unittest.IsolatedAsyncioTestCase):
-    async def test_on_methods_and_limits(self):
+class LimitsTest(unittest.IsolatedAsyncioTestCase):
+    async def test_slots_and_pacing(self):
         limits = Limits(max_calls=1, calls_per_second=5)  # one dialed call at once
-        async with Answering(local("1001", "a", 46000), limits=limits) as phone:
+        async with AsyncPhone(local("1001", "a", 46000), limits=limits) as phone:
+            phone.on(AsyncPhone.Incoming)(lambda e: e.call.answer(media="echo"))
             caller = await phone.account(local("1002", "b", 46200))
             started = time.monotonic()
-            first = await caller.dial(phone.uri)  # answered by on_phone_incoming
+            first = await caller.dial(phone.uri)
             await first.answered(timeout=5)
             caller.timeouts = Timeouts(pool=0.5)
             with self.assertRaises(PoolTimeout):

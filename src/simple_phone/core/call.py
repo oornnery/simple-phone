@@ -347,7 +347,7 @@ class Call(pj.Call):
             self.sink.createPort("sink", fmt)
         self.connect(audio, self.sink)
         self.connect_source(audio)
-        if config.listen:
+        if config.speaker:
             self.speaker = self.connect(audio, self.devices().getPlaybackDevMedia())
         if config.record:
             if self.recorder is None:
@@ -405,10 +405,10 @@ class Call(pj.Call):
             self.endpoint.setup_audio(self.config)  # the sound card may be needed now
         self.connect_source(audio)
 
-    def set_listen(self, enabled):
+    def set_speaker(self, enabled):
         """Play the received audio on the speaker (or stop)."""
         audio = self.audio()
-        self.config = replace(self.config, listen=enabled)
+        self.config = replace(self.config, speaker=enabled)
         if self.speaker is not None:
             self.unlink([self.speaker])
             self.speaker = None
@@ -458,12 +458,6 @@ class Call(pj.Call):
         # Rx: bridge -> call (microphone); Tx: call -> bridge (speaker).
         audio.adjustRxLevel(0 if self.muted else self.microphone_gain)
         audio.adjustTxLevel(self.speaker_gain)
-        self.emit(
-            C.AudioChanged,
-            muted=self.muted,
-            microphone=self.microphone_gain,
-            speaker=self.speaker_gain,
-        )
 
     def set_recording(self, path):
         if self.port is None:
@@ -478,7 +472,6 @@ class Call(pj.Call):
             self.connect(audio, self.recorder)
         path = str(path) if path else None
         self.config = replace(self.config, record=path)
-        self.emit(C.Recording, path=path)
 
     def poll_amd(self):
         """Emit new AMD decisions; detach the port once it is done.
@@ -587,8 +580,8 @@ class Call(pj.Call):
         """Media of an incoming call, before it is answered."""
         if not self.pending:
             raise RuntimeError("Media can only change before answering")
-        if set(changes) - {"media", "wav", "listen", "record"}:
-            raise ValueError("Only media, wav, listen and record can change")
+        if set(changes) - {"media", "wav", "speaker", "record"}:
+            raise ValueError("Only media, wav, speaker and record can change")
         self.config = replace(self.config, **changes)
         self.rewire()  # early media (183) may already be flowing
 

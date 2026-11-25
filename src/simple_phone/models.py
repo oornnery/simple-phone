@@ -9,7 +9,6 @@ from .core.config import Config as Settings
 __all__ = [
     "Amd",
     "CallFailed",
-    "DigestAuth",
     "Limits",
     "PhoneError",
     "PoolTimeout",
@@ -23,14 +22,6 @@ __all__ = [
 
 
 # -- configuration --
-
-
-@dataclass(frozen=True)
-class DigestAuth:
-    """SIP Digest credentials. `username` defaults to the account's user."""
-
-    username: str | None = None
-    password: str | None = None
 
 
 @dataclass(frozen=True)

@@ -18,30 +18,29 @@ MENU = (
 )
 
 
-class Ura(AsyncPhone):
-    async def on_phone_incoming(self, event):
-        call = event.call
-        await call.answer()
-        await asyncio.sleep(0.5)
-        for _ in range(3):
-            await call.say(MENU, interrupt=True)
-            match await call.gather(length=1, timeout=6):
-                case "1":
-                    await call.say("Digite o seu CPF e, em seguida, tecle cerquilha.")
-                    cpf = await call.gather(finish_on="#", timeout=20)
-                    print("CPF recebido:", cpf)
-                    await call.say(
-                        "Pronto. A segunda via foi enviada para o seu e-mail. Obrigado."
-                    )
-                    break
-                case "9":
-                    await call.say("Transferindo para um atendente.")
-                    break
-                case "":
-                    await call.say("Não recebi nenhuma opção.")
-                case _:
-                    await call.say("Opção inválida.")
-        await call.hangup()
+async def ura(event):
+    call = event.call
+    await call.answer()
+    await asyncio.sleep(0.5)
+    for _ in range(3):
+        await call.say(MENU, interrupt=True)
+        match await call.gather(length=1, timeout=6):
+            case "1":
+                await call.say("Digite o seu CPF e, em seguida, tecle cerquilha.")
+                cpf = await call.gather(finish_on="#", timeout=20)
+                print("CPF recebido:", cpf)
+                await call.say(
+                    "Pronto. A segunda via foi enviada para o seu e-mail. Obrigado."
+                )
+                break
+            case "9":
+                await call.say("Transferindo para um atendente.")
+                break
+            case "":
+                await call.say("Não recebi nenhuma opção.")
+            case _:
+                await call.say("Opção inválida.")
+    await call.hangup()
 
 
 async def main():
@@ -50,7 +49,8 @@ async def main():
     )
     tts = PiperTTS("pt_BR-faber-medium")
     await tts.load()
-    async with Ura(settings, tts=tts) as phone:
+    async with AsyncPhone(settings, tts=tts) as phone:
+        phone.on(AsyncPhone.Incoming)(ura)
         print("URA em", phone.uri, "(Ctrl+C sai)")
         await phone.serve()
 

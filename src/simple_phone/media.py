@@ -1,7 +1,7 @@
 """Audio of a call: frames, sources and sinks, and speech engines.
 
-    await call.send(Echo())                  # what the call transmits
-    await call.receive(Speaker(), Recorder("in.wav"))
+    await call.send("echo")                  # what the call transmits
+    await call.record("in.wav")              # what it receives, to a file
     async for frame in call.audio(): ...     # AudioFrame
     stream = await call.stream(rate=16000)   # Python-fed source
     await call.say("Olá")                    # TTS through a stream
@@ -37,44 +37,6 @@ class AudioFrame:
     @property
     def seconds(self):
         return len(self.pcm) / 2 / self.rate
-
-
-# -- sources: what a call transmits (call.send) --
-
-
-@dataclass(frozen=True)
-class Silence:
-    kind = "silent"
-
-
-@dataclass(frozen=True)
-class Echo:
-    kind = "echo"
-
-
-@dataclass(frozen=True)
-class Microphone:
-    kind = "mic"
-
-
-@dataclass(frozen=True)
-class WavFile:
-    path: str
-    loop: bool = False
-    kind = "wav"
-
-
-# -- sinks: where received audio goes (call.receive) --
-
-
-@dataclass(frozen=True)
-class Speaker:
-    pass
-
-
-@dataclass(frozen=True)
-class Recorder:
-    path: str
 
 
 class Stream:

@@ -12,7 +12,6 @@ from simple_phone import (
     AsyncPhone,
     Call,
     CallFailed,
-    DigestAuth,
     RegistrationFailed,
     Settings,
 )
@@ -41,14 +40,10 @@ async def until(condition, timeout=10):
 @unittest.skipUnless(HOST, "set ASTERISK_HOST (bash scripts/asterisk.sh)")
 class AsteriskTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
-        self.phone = AsyncPhone(
-            account("1001", 42000, mwi=True), auth=DigestAuth(password="secret")
-        )
+        self.phone = AsyncPhone(account("1001", 42000, mwi=True), password="secret")
         await self.phone.__aenter__()  # registered, or raises
         self.addAsyncCleanup(self.phone.close)
-        self.other = await self.phone.account(
-            account("1002", 42200), auth=DigestAuth(password="secret")
-        )
+        self.other = await self.phone.account(account("1002", 42200), password="secret")
 
     async def test_registration_and_options(self):
         self.assertTrue(self.phone.registered)
@@ -60,7 +55,7 @@ class AsteriskTest(unittest.IsolatedAsyncioTestCase):
     async def test_wrong_password_is_rejected(self):
         wrong = replace(account("1002", 42400), account_id="wrong")
         with self.assertRaises(RegistrationFailed):
-            await self.phone.account(wrong, auth=DigestAuth(password="nope"))
+            await self.phone.account(wrong, password="nope")
 
     async def test_echo_carries_rtp_both_ways(self):
         async with self.phone.call("600") as call:

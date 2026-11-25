@@ -7,5 +7,5 @@
   "rtp_port": 40000,
   "max_calls": 4,
   "media": "silent",
-  "listen": false
+  "speaker": false
 }

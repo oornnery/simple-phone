@@ -27,7 +27,7 @@ class Config:
     media: str = "silent"
     wav: str = "reference.wav"
     wav_loop: bool = False
-    listen: bool = False
+    speaker: bool = False  # play received audio on the sound card
     record: str | None = None
     codec: str = "auto"
     capture_device: int | None = None

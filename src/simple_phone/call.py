@@ -5,61 +5,12 @@ from __future__ import annotations
 import asyncio
 import time
 import wave
-from dataclasses import dataclass, replace
+from dataclasses import replace
 
 from .core.call import Call as Native
 from .events import CallEvents
-from .media import AudioFrame, Recorder, Speaker, Stream, rms, utterances
+from .media import AudioFrame, Stream, rms, utterances
 from .models import CallFailed, PhoneError, Report, WaitTimeout
-
-
-@dataclass
-class Evidence:
-    """What happened in a call, as plain data (and text for a judge)."""
-
-    target: str | None
-    flow: list
-    final_code: int | None
-    transcript: list
-    dtmf_received: str
-    dtmf_sent: str
-    text_received: str
-    amd: str | None
-    report: dict | None
-
-    @classmethod
-    def of(cls, call):
-        amd = [e.amd.result for e in call.timeline if isinstance(e, call.Amd)]
-        sent = "".join(e.digits for e in call.timeline if isinstance(e, call.DtmfSent))
-        return cls(
-            target=call.destination or call.remote_uri,
-            flow=call.trace.flow(),
-            final_code=call.response.code if call.response else call.code,
-            transcript=list(call.transcript),
-            dtmf_received=call.dtmf_received,
-            dtmf_sent=sent,
-            text_received=call.text_received,
-            amd=amd[-1] if amd else None,
-            report=call.report.raw if call.report else None,
-        )
-
-    def to_text(self):
-        lines = [
-            f"Target: {self.target}",
-            f"SIP flow: {' '.join(self.flow)} (final {self.final_code})",
-            f"Audio classification (AMD): {self.amd or 'unknown'}",
-            f"DTMF sent: {self.dtmf_sent or '-'}; received: {self.dtmf_received or '-'}",
-        ]
-        if self.text_received:
-            lines.append(f"Real-time text received: {self.text_received}")
-        if self.report:
-            lines.append(
-                f"Answered: {self.report.get('answered')}, connected "
-                f"{self.report.get('connected_seconds')} s"
-            )
-        lines.append("Transcript:")
-        lines += [f"  {who}: {text}" for who, text in self.transcript] or ["  (none)"]
-        return "\n".join(lines)
 
 
 class Trace(list):
@@ -115,11 +66,6 @@ class Call(CallEvents):
     def response(self):
         """The final response to our INVITE (>= 200), once it arrived."""
         return next((m for m in reversed(self.history) if m.code >= 200), None)
-
-    @property
-    def evidence(self):
-        """Everything observed in this call, for reports and judges."""
-        return Evidence.of(self)
 
     @property
     def text_received(self):
@@ -192,7 +138,7 @@ class Call(CallEvents):
 
     async def answer(self, code=200, **media):
         """Answer (1xx keeps it ringing, e.g. 183). `media`: media, wav,
-        listen, record for this call only, e.g. answer(media="echo")."""
+        speaker, record for this call only, e.g. answer(media="echo")."""
         if media:
             await self._do(Native.configure, media)
         await self._do(Native.accept, code)
@@ -279,20 +225,15 @@ class Call(CallEvents):
 
     # -- media --
 
-    async def send(self, source):
-        """Change what the call transmits: Silence(), Echo(), Microphone(),
-        WavFile(path, loop=False). Streams and say() mix on top of it."""
-        path = getattr(source, "path", None)
-        loop = getattr(source, "loop", False)
-        await self._do(Native.set_source, source.kind, path, loop)
+    async def send(self, media, wav=None, *, loop=False):
+        """Change what the call transmits: "silent", "echo", "mic", or
+        "wav" with a file, e.g. send("wav", "notice.wav", loop=True).
+        Streams, play() and say() mix on top of it."""
+        await self._do(Native.set_source, media, str(wav) if wav else None, loop)
 
-    async def receive(self, *sinks):
-        """Where received audio goes: Speaker(), Recorder(path). Replaces the
-        previous sinks; receive() with none stops both."""
-        speaker = any(isinstance(s, Speaker) for s in sinks)
-        record = next((s.path for s in sinks if isinstance(s, Recorder)), None)
-        await self._do(Native.set_listen, speaker)
-        await self.record(record)
+    async def speaker(self, enabled=True):
+        """Play received audio on the sound card (or stop)."""
+        await self._do(Native.set_speaker, enabled)
 
     async def stream(self, rate=8000) -> Stream:
         """A source fed from Python (16-bit mono PCM at `rate`), mixed into

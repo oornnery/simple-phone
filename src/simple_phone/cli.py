@@ -33,7 +33,7 @@ from rich.table import Table
 from .call import Call
 from .core.config import MEDIA_MODES
 from .core.profiles import load_profile
-from .models import DigestAuth, PhoneError, Settings, Timeouts, WaitTimeout
+from .models import PhoneError, Settings, Timeouts, WaitTimeout
 from .phone import AsyncPhone
 from .version import PJSIP_VERSION, __version__
 
@@ -47,7 +47,8 @@ LOCAL = Settings(server="127.0.0.1", user="local", register=False, log_level=1)
 
 
 def parse_args(argv=None):
-    common = argparse.ArgumentParser(add_help=False, argument_default=argparse.SUPPRESS)
+    # Options not given stay None, so they never override the profile.
+    common = argparse.ArgumentParser(add_help=False)
     group = common.add_argument_group("account")
     add = group.add_argument
     add("--profile", help="JSON profile: Settings fields and password_env")
@@ -57,7 +58,13 @@ def parse_args(argv=None):
     add("--auth-user", help="Digest login, if not --user")
     add("--domain", help="identity domain (default: --server)")
     add("--proxy", help="outbound proxy, e.g. 'sip:host:5060;lr'")
-    add("--no-register", dest="register", action="store_false", help="no REGISTER")
+    add(
+        "--no-register",
+        dest="register",
+        action="store_const",
+        const=False,
+        help="no REGISTER",
+    )
     add("--transport", choices=["udp", "tcp", "tls"])
     add("--local-port", type=int, help="local SIP port (default 5070)")
     add("--rtp-port", type=int, help="first of 100 RTP ports (default 40000)")
@@ -66,6 +73,7 @@ def parse_args(argv=None):
         "--set",
         dest="extra",
         action="append",
+        default=[],
         metavar="NAME=VALUE",
         help="any other Settings field, e.g. --set srtp=mandatory",
     )
@@ -74,14 +82,25 @@ def parse_args(argv=None):
     add = group.add_argument
     add("--media", choices=MEDIA_MODES, help="what to send (default silent)")
     add("--wav", help="8 kHz mono WAV to send with --media wav")
-    add("--listen", action="store_true", help="play received audio here")
+    add("--speaker", action="store_const", const=True, help="play received audio")
     add("--record", metavar="WAV", help="record received audio")
     add("--codec", help="auto, or names such as PCMA,PCMU,opus")
-    add("--no-amd", dest="amd", action="store_false", help="skip answer detection")
+    add(
+        "--no-amd",
+        dest="amd",
+        action="store_const",
+        const=False,
+        help="skip answer detection",
+    )
 
     group = common.add_argument_group("output")
     add = group.add_argument
-    add("--timeout", type=float, help="seconds for REGISTER, setup and waiting")
+    add(
+        "--timeout",
+        type=float,
+        default=30.0,
+        help="seconds to register, to be answered, to wait for a call (default 30)",
+    )
     add("--trace", action="store_true", help="one line per SIP message")
     add("--stats", action="store_true", help="RTP counters every second")
     add("-v", "--verbose", action="store_true", help="PJSIP log")
@@ -106,10 +125,6 @@ def parse_args(argv=None):
         metavar="'Name: value'",
         help="extra INVITE header",
     )
-    call.add_argument("--dtmf", default="", help="digits to send once answered")
-    call.add_argument(
-        "--dtmf-delay", type=float, default=2.0, help="seconds after answer (default 2)"
-    )
     answer = commands.add_parser(
         "answer", parents=[common], help="wait for one call and answer it"
     )
@@ -120,6 +135,13 @@ def parse_args(argv=None):
             default=15.0,
             help="seconds connected (default 15)",
         )
+        sub.add_argument("--dtmf", default="", help="digits to send once answered")
+        sub.add_argument(
+            "--dtmf-delay",
+            type=float,
+            default=2.0,
+            help="seconds after the answer (default 2)",
+        )
         sub.add_argument("--json", metavar="FILE", help="save the full report")
     commands.add_parser(
         "doctor",
@@ -129,18 +151,19 @@ def parse_args(argv=None):
     commands.add_parser("devices", help="audio devices")
 
     opt = parser.parse_args(argv)
-    if any(":" not in h for h in getattr(opt, "header", ())):
+    if opt.command == "call" and any(":" not in h for h in opt.header):
         parser.error("--header must look like 'Name: value'")
     return opt
 
 
 def settings_from(opt):
     """Profile, then flags, then --set; returns (Settings, password_env)."""
-    values = load_profile(opt.profile) if getattr(opt, "profile", None) else {}
-    password_env = values.pop("password_env", "SIP_PASSWORD")
-    password_env = getattr(opt, "password_env", password_env)
-    values |= {k: v for k, v in vars(opt).items() if k in SETTINGS}
-    for pair in getattr(opt, "extra", ()):
+    values = load_profile(opt.profile) if opt.profile else {}
+    password_env = opt.password_env or values.pop("password_env", "SIP_PASSWORD")
+    values.pop("password_env", None)
+    given = {k: v for k, v in vars(opt).items() if v is not None}
+    values |= {k: v for k, v in given.items() if k in SETTINGS}
+    for pair in opt.extra:
         name, sep, text = pair.partition("=")
         if not sep or name not in SETTINGS:
             raise ValueError(f"--set {pair}: not a Settings field")
@@ -148,7 +171,7 @@ def settings_from(opt):
             values[name] = json.loads(text)  # numbers, true/false, lists
         except json.JSONDecodeError:
             values[name] = text
-    values.setdefault("log_level", 4 if getattr(opt, "verbose", False) else 1)
+    values.setdefault("log_level", 4 if opt.verbose else 1)
     if not values.get("server") or not values.get("user"):
         raise ValueError("--server and --user (or --profile) are required")
     return Settings(**values), password_env
@@ -183,11 +206,11 @@ def show(phone, opt):
         Call.Amd: lambda e: f"[bold]AMD[/] {e.amd.result} [dim]({e.amd.reason})[/]",
         AsyncPhone.Warning: lambda e: f"[yellow]warning:[/] {e.text}",
     }
-    if getattr(opt, "verbose", False):
+    if opt.verbose:
         lines[AsyncPhone.Log] = lambda e: f"[dim]{e.text}[/]"
-    if getattr(opt, "trace", False):
+    if opt.trace:
         lines |= {Call.Sip: sip_line, AsyncPhone.Sip: sip_line}
-    if getattr(opt, "stats", False):
+    if opt.stats:
         lines[Call.Stats] = lambda e: (
             f"[dim]RTP tx={e.stats.tx_packets} rx={e.stats.rx_packets} "
             f"lost={e.stats.rx_lost} jitter={e.stats.jitter_ms} ms[/]"
@@ -202,10 +225,8 @@ def show(phone, opt):
 async def one_call(opt, settings, password):
     """Dial or answer, keep the call for --duration, hang up. Returns the
     call (None if it never started) and the error, if any."""
-    timeouts = Timeouts(
-        register=getattr(opt, "timeout", 30), setup=getattr(opt, "timeout", 30)
-    )
-    phone = AsyncPhone(settings, auth=DigestAuth(password=password), timeouts=timeouts)
+    timeouts = Timeouts(register=opt.timeout, setup=opt.timeout)
+    phone = AsyncPhone(settings, password=password, timeouts=timeouts)
     show(phone, opt)
     call, error = None, None
     async with phone:
@@ -239,7 +260,7 @@ async def talk(call, opt):
     """Send --dtmf after --dtmf-delay; return after --duration or hangup."""
     loop = asyncio.get_running_loop()
     end = loop.time() + opt.duration
-    if getattr(opt, "dtmf", "") and opt.dtmf_delay < opt.duration:
+    if opt.dtmf and opt.dtmf_delay < opt.duration:
         if await ended_within(call, opt.dtmf_delay):
             return
         try:
@@ -360,8 +381,7 @@ async def doctor(opt, settings, password, network=True):
         mark = "[green]✓[/]" if ok else "[red]✗[/]"
         table.add_row(f"{mark} {name}", text)
 
-    timeout = getattr(opt, "timeout", 10)
-    async with AsyncPhone(settings, auth=DigestAuth(password=password)) as phone:
+    async with AsyncPhone(settings, password=password) as phone:
         codecs = [c["id"] for c in await phone.codecs() if c["priority"]]
         row("codecs", bool(codecs), ", ".join(codecs) or "none")
         row("audio devices", True, str(len(await phone.devices())))
@@ -370,19 +390,19 @@ async def doctor(opt, settings, password, network=True):
             return 0
         if settings.stun_servers:
             try:
-                nat = await phone.nat_type(timeout)
+                nat = await phone.nat_type(opt.timeout)
                 row("NAT", nat.ok, nat.type if nat.ok else nat.reason)
             except PhoneError as exc:
                 row("NAT", False, str(exc))
         if settings.register:
             try:
-                await phone.wait_registered(timeout)
+                await phone.wait_registered(opt.timeout)
                 row("REGISTER", True, str(phone.reg))
             except PhoneError as exc:
                 row("REGISTER", False, str(exc))
         target = f"sip:{settings.server}:{settings.port}"
         try:
-            response = await phone.options(target, timeout=timeout)
+            response = await phone.options(target, timeout=opt.timeout)
             row(
                 f"OPTIONS {target}",
                 # 401/407 is an answer too: PJSUA sends OPTIONS without credentials
@@ -400,16 +420,14 @@ def main(argv=None):
     try:
         if opt.command == "devices":
             return asyncio.run(devices())
-        if opt.command == "doctor" and not (
-            getattr(opt, "server", None) or getattr(opt, "profile", None)
-        ):
+        if opt.command == "doctor" and not (opt.server or opt.profile):
             return asyncio.run(doctor(opt, LOCAL, None, network=False))
         settings, password_env = settings_from(opt)
         password = password_for(settings, password_env)
         if opt.command == "doctor":
             return asyncio.run(doctor(opt, settings, password))
         call, error = asyncio.run(one_call(opt, settings, password))
-        if getattr(opt, "json", None):
+        if opt.json:
             save_json(opt.json, call, error)
         return summary(call, error)
     except KeyboardInterrupt:

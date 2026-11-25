@@ -85,19 +85,6 @@ class Account(pj.Account):
             active=active,
             account_id=self.account_id,
         )
-        if active and 200 <= code < 300:
-            self.endpoint.emit(
-                P.Registered, code=code, reason=reason, account_id=self.account_id
-            )
-        # PJSUA answers the Digest challenge itself: a 401/407 here is final
-        # (wrong password, or none).
-        if code >= 300:
-            self.endpoint.emit(
-                P.RegistrationFailed,
-                code=code,
-                reason=reason,
-                account_id=self.account_id,
-            )
 
     def onSendRequest(self, prm):
         # Final response to a request sent with Endpoint.send_request().

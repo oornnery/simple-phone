@@ -1,9 +1,9 @@
 """Mídia: o que a chamada envia (fontes) e para onde vai o que ela recebe
 (destinos), áudio ao vivo em Python, métricas RTP e os três tipos de DTMF.
 
-Fontes: Silence(), Echo(), Microphone(), WavFile(path, loop=).
-Destinos: Speaker(), Recorder(path). Com placa de som, troque o Recorder
-por Speaker() e o WavFile por Microphone() para falar de verdade.
+Enviar: send("silent" | "echo" | "mic"), ou send("wav", arquivo, loop=).
+Receber: record(arquivo) grava; speaker() toca na placa de som. Com placa de
+som, use send("mic") e speaker() para falar de verdade.
 """
 
 import array
@@ -12,7 +12,7 @@ import asyncio
 import local
 
 from simple_phone import AsyncPhone, Call
-from simple_phone.media import AudioFrame, Recorder, Silence, WavFile, rms
+from simple_phone.media import AudioFrame, rms
 
 
 async def main():
@@ -32,8 +32,8 @@ async def main():
             print("[outro lado] DTMF", event.digit, f"({event.method})")
 
         async with phone.call(far.uri) as call:
-            await call.send(WavFile(music, loop=True))  # o que transmitimos
-            await call.receive(Recorder(str(received)))  # o que ouvimos
+            await call.send("wav", music, loop=True)  # o que transmitimos
+            await call.record(received)  # grava o que ouvimos
 
             frames = []
             async for frame in call.audio():  # PCM recebido, 20 ms por quadro
@@ -51,7 +51,7 @@ async def main():
                 )
                 break
 
-            await call.send(Silence())
+            await call.send("silent")
             await call.play(beep)  # toca por cima e volta quando acaba
             stream = await call.stream()  # fonte alimentada pelo Python
             pcm = array.array("h", local.tone(660, 0.3)).tobytes()
@@ -66,7 +66,7 @@ async def main():
             await call.dtmf("2", method="info")  # SIP INFO
             await call.dtmf("3", method="inband")  # tons no áudio (PJSUA não detecta)
             await asyncio.sleep(1)
-            await call.receive()  # para de gravar
+            await call.record(None)  # para de gravar
 
         print("Gravado:", received)
 

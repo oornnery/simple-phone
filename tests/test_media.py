@@ -9,11 +9,7 @@ from pathlib import Path
 from simple_phone import AsyncPhone, Settings
 from simple_phone.media import (
     AudioFrame,
-    Echo,
-    Recorder,
     Segmenter,
-    Silence,
-    WavFile,
     rms,
 )
 
@@ -129,19 +125,19 @@ class MediaTest(unittest.IsolatedAsyncioTestCase):
     async def test_send_switches_the_source_while_the_call_runs(self):
         async with self.phone.call(self.other.uri) as call:
             self.assertLess(await loudness(self.incoming), 50)  # silent by default
-            await call.send(WavFile(str(self.noise), loop=True))
+            await call.send("wav", self.noise, loop=True)
             self.assertGreater(await loudness(self.incoming), 1000)
-            await call.send(Silence())
+            await call.send("silent")
             await asyncio.sleep(0.2)
             self.assertLess(await loudness(self.incoming), 50)
-            await self.incoming.send(WavFile(str(self.noise)))
-            await call.send(Echo())  # what comes in goes back out
+            await self.incoming.send("wav", self.noise)
+            await call.send("echo")  # what comes in goes back out
             self.assertGreater(await loudness(self.incoming), 1000)
 
     async def test_receive_records_and_stream_feeds_python_audio(self):
         recorded = self.folder / "in.wav"
         async with self.phone.call(self.other.uri) as call:
-            await self.incoming.receive(Recorder(str(recorded)))
+            await self.incoming.record(recorded)
             stream = await call.stream(rate=16000)
             stream.write(pcm(speech(1000, rate=16000)))
             self.assertGreater(await loudness(self.incoming, 0.5), 1000)
@@ -149,7 +145,7 @@ class MediaTest(unittest.IsolatedAsyncioTestCase):
             await asyncio.sleep(0.2)
             self.assertLess(await loudness(self.incoming, 0.4), 50)
             self.assertEqual(stream.pending, 0)
-            await self.incoming.receive()  # stop recording
+            await self.incoming.record(None)  # stop recording
         with wave.open(str(recorded)) as audio:
             self.assertGreater(audio.getnframes(), RATE // 4)
 
@@ -161,7 +157,7 @@ class MediaTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(self.tts.said, ["segunda via"])
 
             self.tts.seconds = 6  # long speech, and the other side talks over it
-            await self.incoming.send(WavFile(str(self.noise), loop=True))
+            await self.incoming.send("wav", self.noise, loop=True)
             started = asyncio.get_running_loop().time()
             self.assertFalse(await call.say("um texto longo", interrupt=True))
             self.assertLess(asyncio.get_running_loop().time() - started, 3)
@@ -183,7 +179,7 @@ class MediaTest(unittest.IsolatedAsyncioTestCase):
 
             write_wav(self.noise, silence(200) + speech(800) + silence(1500))
             listening = asyncio.ensure_future(call.listen(timeout=5))
-            await self.incoming.send(WavFile(str(self.noise)))
+            await self.incoming.send("wav", self.noise)
             self.assertRegex(await listening, r"s of speech$")
 
             hearing = asyncio.ensure_future(loudness(self.incoming, 0.8))

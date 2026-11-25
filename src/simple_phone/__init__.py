@@ -12,11 +12,10 @@ Layers, each built only on the ones before it:
 
 from ._native import pjsua2
 from .call import Call
-from .events import Event
+from .events import CallEvent, Event, PhoneEvent
 from .models import (
     Amd,
     CallFailed,
-    DigestAuth,
     Limits,
     PhoneError,
     PoolTimeout,
@@ -35,12 +34,13 @@ __all__ = [
     "Amd",
     "AsyncPhone",
     "Call",
+    "CallEvent",
     "CallFailed",
-    "DigestAuth",
     "Event",
     "Limits",
     "Phone",
     "PhoneError",
+    "PhoneEvent",
     "PoolTimeout",
     "RegistrationFailed",
     "Report",

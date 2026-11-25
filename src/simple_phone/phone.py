@@ -1,10 +1,10 @@
 """AsyncPhone (the implementation) and Phone (the same API, synchronous).
 
-    async with AsyncPhone(Settings(server="pbx", user="1001"), auth=DigestAuth(password="...")) as phone:
+    async with AsyncPhone(server="pbx", user="1001", password="...") as phone:
         async with phone.call("1002") as call:          # answered, or CallFailed
             await call.dtmf("1234#")
 
-    with Phone(Settings(...)) as phone:                  # no await
+    with Phone(server="pbx", user="1001", password="...") as phone:   # no await
         with phone.call("1002") as call:
             call.dtmf("1234#")
 
@@ -28,7 +28,6 @@ from .core.engine import Engine
 from .core.profiles import load_account, load_profile
 from .events import CallEvents, PhoneEvents
 from .models import (
-    DigestAuth,
     Limits,
     PhoneError,
     PoolTimeout,
@@ -45,15 +44,14 @@ class AsyncPhone(PhoneEvents):
     """One SIP account. The first one opened owns the PJSIP endpoint; more
     accounts on the same endpoint come from phone.account().
 
-    Handlers: `@phone.on(Call.Dtmf, digit="#")`, or `on_<namespace>_<event>`
-    methods in a subclass (on_phone_incoming, on_call_dtmf...), as in Textual.
+    Handlers: `@phone.on(Call.Dtmf, digit="#")`. Streams: `phone.events()`.
     """
 
     def __init__(
         self,
         settings: Settings | None = None,
         *,
-        auth: DigestAuth | None = None,
+        password: str | None = None,
         limits: Limits | None = None,
         timeouts: Timeouts | None = None,
         stt=None,
@@ -67,14 +65,10 @@ class AsyncPhone(PhoneEvents):
         self.stt, self.tts = stt, tts  # for call.listen() / call.say()
         self.limits = limits or Limits()
         self.timeouts = timeouts or Timeouts()
-        auth = auth or DigestAuth()
         # The endpoint takes up to 64 calls (the compiled limit); Limits only
         # paces the calls this phone dials.
-        changes = {"max_calls": 64}
-        if auth.username and auth.username != settings.user:
-            changes["auth_user"] = auth.username
-        self.settings = replace(settings, **changes)
-        self.password = auth.password
+        self.settings = replace(settings, max_calls=64)
+        self.password = password  # Digest; the login is Settings.auth_user
         self.registered = False
         self.reg = None  # last REGISTER status, e.g. "200 OK"
         self.errors = []  # exceptions raised by handlers
@@ -94,7 +88,7 @@ class AsyncPhone(PhoneEvents):
         variable named by its password_env (default SIP_PASSWORD)."""
         values = load_profile(path)
         variable = values.pop("password_env", "SIP_PASSWORD")
-        kwargs.setdefault("auth", DigestAuth(password=os.environ.get(variable)))
+        kwargs.setdefault("password", os.environ.get(variable))
         return cls(Settings(**values), **kwargs)
 
     @property
@@ -140,16 +134,16 @@ class AsyncPhone(PhoneEvents):
         if self.settings.register and self.settings.auto_register:
             await self.wait_registered()
 
-    async def account(self, settings, *, auth=None) -> AsyncPhone:
+    async def account(self, settings, *, password=None) -> AsyncPhone:
         """Another identity on this endpoint, from Settings or a JSON profile
         path. Shares the SIP port; gets its own RTP range and calls."""
         hub = self._require()
         if not isinstance(settings, Settings):  # a profile path
             settings, variable = load_account(settings, self.settings, len(hub.phones))
-            auth = auth or DigestAuth(password=os.environ.get(variable))
+            password = password or os.environ.get(variable)
         other = AsyncPhone(
             settings,
-            auth=auth,
+            password=password,
             limits=self.limits,
             timeouts=self.timeouts,
             stt=self.stt,
@@ -357,7 +351,7 @@ class AsyncPhone(PhoneEvents):
             self._listeners.remove(entry)
 
     async def configure(self, **changes):
-        """media, wav, listen, record, amd, devices: from the next call on."""
+        """media, wav, speaker, record, amd, devices: from the next call on."""
         await self._run(self._endpoint.configure, changes, self.account_id)
 
     async def devices(self):
@@ -403,6 +397,8 @@ class AsyncPhone(PhoneEvents):
         if isinstance(event, self.Registration):
             self.registered = event.active
             self.reg = f"{event.code} {event.reason}"
+            # PJSUA answers the Digest challenge itself: a 401/407 here is
+            # final (wrong password, or none).
             if event.code >= 300:
                 self._reg_failure = (event.code, event.reason)
             self._reg_changed.set()
@@ -423,10 +419,6 @@ class AsyncPhone(PhoneEvents):
             ):
                 handled = True
                 self._start(handler, event)
-        method = getattr(self, event.handler_name, None)
-        if method is not None:
-            handled = True
-            self._start(method, event)
         if isinstance(event, self.Incoming) and not handled and event.call is not None:
             self._incoming.put_nowait(event.call)
 

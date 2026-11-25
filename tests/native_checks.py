@@ -207,7 +207,6 @@ class NativeTests(unittest.TestCase):
 
     def test_deferred_register(self):
         import threading
-        from dataclasses import replace
 
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as registrar:
             registrar.bind(("127.0.0.1", 0))
@@ -255,17 +254,7 @@ class NativeTests(unittest.TestCase):
                     self.assertEqual(received, [])
                     engine.run(engine.endpoint.set_registration, True)
                     wait_for(lambda: registered and registered[-1])
-                    updated = replace(config, user="edited-registration")
-                    engine.run(engine.endpoint.update_account, updated)
-                    engine.run(engine.endpoint.set_registration, True)
-                    wait_for(
-                        lambda: any(
-                            "sip:edited-registration@" in text for text in received
-                        )
-                    )
-                    engine.run(
-                        engine.endpoint.update_account, replace(updated, register=False)
-                    )
+                    engine.run(engine.endpoint.set_registration, False)
                     wait_for(lambda: registered and not registered[-1])
             finally:
                 stopped.set()
