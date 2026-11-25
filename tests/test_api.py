@@ -115,9 +115,9 @@ class ApiTest(unittest.IsolatedAsyncioTestCase):
         received = []
         self.other.on(AsyncPhone.Message)(received.append)
         self.assertEqual((await self.phone.options(self.other.uri)).code, 200)
-        self.assertEqual((await self.phone.message(self.other.uri, "olá")).code, 200)
+        self.assertEqual((await self.phone.message(self.other.uri, "café")).code, 200)
         await asyncio.sleep(0.2)
-        self.assertEqual([m.body for m in received], ["olá"])
+        self.assertEqual([m.body for m in received], ["café"])
 
         async with self.phone.call(self.other.uri) as call:
             info = await call.request(
@@ -211,10 +211,10 @@ class ApiTest(unittest.IsolatedAsyncioTestCase):
         async with self.phone.call(third.uri) as call:
             self.assertTrue((await call.hold()).held)
             self.assertFalse((await call.unhold()).held)  # right after hold()
-            call.emit(Note(text="olá"))
+            call.emit(Note(text="café"))
             event = await call.wait_for(Note)
         self.assertIs(event.call, call)
-        self.assertEqual([e.text for e in seen], ["olá"])
+        self.assertEqual([e.text for e in seen], ["café"])
         self.assertIn("PRACK", call.trace.flow())  # c requires 100rel
         self.assertIn("session-expires", call.response.headers)
 
@@ -268,9 +268,9 @@ class ApiTest(unittest.IsolatedAsyncioTestCase):
         await until(lambda: presence and presence[-1].online is False)  # default
         await self.phone.set_presence(True)
         await until(lambda: presence[-1].online)
-        await self.phone.set_presence(False, "em reunião")
+        await self.phone.set_presence(False, "in a meeting")
         await until(lambda: presence[-1].online is False)
-        self.assertEqual(presence[-1].note, "em reunião")
+        self.assertEqual(presence[-1].note, "in a meeting")
         await self.other.unsubscribe(self.phone.uri)
 
         typing = collect(self.other, AsyncPhone.Typing)

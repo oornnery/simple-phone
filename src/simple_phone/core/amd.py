@@ -4,9 +4,9 @@ Three layers, all on the audio this side receives (16-bit mono PCM frames):
 
 1. SIP hints: answered within a second with no ringing points to a machine.
 2. Voice pattern after the answer, like Asterisk AMD(): a person says a
-   short "alô?" and waits; an IVR or voicemail talks for longer.
-3. Tones (Goertzel): SIT tones mean a network announcement ("número
-   inexistente"); a single pure beep after the answer means voicemail.
+   short "hello?" and waits; an IVR or voicemail talks for longer.
+3. Tones (Goertzel): SIT tones mean a network announcement ("number
+   not in service"); a single pure beep after the answer means voicemail.
 
 Results: human, machine (IVR or voicemail greeting), voicemail (beep heard),
 sit, silence (nobody spoke), unsure. A later tone can upgrade the result:

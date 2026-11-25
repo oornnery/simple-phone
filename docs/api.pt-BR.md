@@ -127,7 +127,7 @@ event = await call.wait_for(Call.Sip, lambda e: e.message.code == 183, timeout=1
 | `Call.Amd` | `amd.result`, `amd.reason` |
 | `Call.MediaChanged` | `status`, `held` |
 | `Call.Transaction` | `method`, `code`, `reason` de uma requisição dentro do diálogo |
-| `Call.TransferStatus`, `Call.TransferRequest` | `code`, `final`, `success`; `target`, `accepted` |
+| `Call.TransferStatus`, `Call.TransferRequest` | `code`, `reason`, `final`, `success`; `target`, `accepted` |
 | `Call.Redirected`, `Call.Reinvite` | `target`, `followed`; `has_offer` |
 | `Call.Message`, `Call.Text` | `body`; `text` |
 
@@ -191,7 +191,9 @@ Com motores de voz:
 ```python
 from simple_phone.media import PiperTTS, WhisperSTT
 
-phone = AsyncPhone(..., tts=PiperTTS("pt_BR-faber-medium"), stt=WhisperSTT("base"))
+phone = AsyncPhone(
+    ..., tts=PiperTTS("pt_BR-faber-medium"), stt=WhisperSTT("base", language="pt")
+)
 await call.say(
     "Para segunda via, digite 1.", interrupt=True
 )  # para quando o outro lado fala

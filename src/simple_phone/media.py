@@ -4,7 +4,7 @@
     await call.record("in.wav")              # what it receives, to a file
     async for frame in call.audio(): ...     # AudioFrame
     stream = await call.stream(rate=16000)   # Python-fed source
-    await call.say("Olá")                    # TTS through a stream
+    await call.say("Hello")                  # TTS through a stream
     text = await call.listen()               # next utterance, via STT
 
 Speech engines are protocols: anything with `async transcribe(pcm, rate)`
@@ -183,7 +183,7 @@ class WhisperSTT:
     decider.
     """
 
-    def __init__(self, model="base", language="pt", device="cpu", **options):
+    def __init__(self, model="base", language="en", device="cpu", **options):
         self.model_name = model
         self.language = language
         self.device = device
@@ -236,7 +236,7 @@ class PiperTTS:
     ready, so a call can start speaking before the whole text is done.
     """
 
-    def __init__(self, voice="pt_BR-faber-medium", voices_dir=None):
+    def __init__(self, voice="en_US-lessac-medium", voices_dir=None):
         self.voice_name = voice
         cache = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache"))
         self.voices_dir = Path(
