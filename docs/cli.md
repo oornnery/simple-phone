@@ -66,12 +66,16 @@ simple-phone call 1002 --server pbx --user 1001 --media wav --wav reference.wav 
 | `--profile FILE` | JSON with any `Settings` fields, plus `password_env` | |
 | `--password-env` | Variable that holds the password | `SIP_PASSWORD` |
 | `--set NAME=VALUE` | Any other `Settings` field, e.g. `--set srtp=mandatory` | |
-| `--media` | `silent`, `echo`, `wav` or `mic` | silent |
+| `--media` | `silent`, `echo`, `wav`, `mic`, `tone` or `noise` | silent |
+| `--tone HZ` | Frequency of `--media tone` | 1000 |
+| `--loop` | Repeat `--wav` instead of playing it once | off |
 | `--wav`, `--record` | WAV to send; WAV to record what is received | |
 | `--speaker` | Play received audio on this machine | off |
 | `--codec` | `auto`, or names such as `PCMA,PCMU,opus` | auto |
 | `--no-amd` | Skip answering-machine detection | on |
 | `--duration` | Seconds connected (`call`, `answer`) | 15 |
+| `--media-delay` | Seconds of silence after the answer before `--media` starts (`call`, `answer`) | 0 |
+| `--answer-delay` | Seconds it rings before `answer` answers | 0 |
 | `--timeout` | Seconds to register, to be answered, and to wait for a call | 30 |
 | `--header 'Name: value'` | Extra header, repeatable (`call`, `options`, `message`) | |
 | `--dtmf`, `--dtmf-delay` | RFC 4733 digits, sent this many seconds after the answer (`call`, `answer`) | none, 2 |
@@ -86,8 +90,10 @@ Flags override the profile, and `--set` overrides both. `--set` reads JSON value
 |---|---|
 | `silent` | Silence. RTP still flows (default) |
 | `echo` | The audio it receives, decoded and encoded again |
-| `wav` | `--wav` once, then silence. 8 kHz mono 16-bit PCM |
+| `wav` | `--wav` once, then silence (`--loop` repeats it). 8 kHz mono 16-bit PCM |
 | `mic` | The microphone |
+| `tone` | A continuous sine tone at `--tone` Hz |
+| `noise` | Noise as loud as speech: the far end's AMD or speech detection takes it for someone talking |
 
 ```bash
 ffmpeg -f lavfi -i "sine=frequency=1000:sample_rate=8000:duration=60" -ac 1 -c:a pcm_s16le reference.wav

@@ -38,10 +38,15 @@ export SIP_PASSWORD=...
 simple-phone call 1002 --server pbx.example.com --user 1001 --duration 30
 # Espera uma chamada e devolve o que ouve (eco)
 simple-phone answer --server pbx.example.com --user 1002 --media echo --timeout 600
+# Toca 5 s antes de atender, depois eco após 3 s de silêncio
+simple-phone answer --server pbx.example.com --user 1002 --answer-delay 5 --media echo --media-delay 3
+# Envia um tom de 1 kHz, ou ruído tão alto quanto a fala
+simple-phone call 1002 --server pbx.example.com --user 1001 --media tone --tone 1000
+simple-phone call 1002 --server pbx.example.com --user 1001 --media noise
 # Digita teclas 2 s depois do atendimento (DTMF RFC 4733)
 simple-phone call 600 --server pbx.example.com --user 1001 --dtmf '1234#' --dtmf-delay 2
-# Toca um WAV (8 kHz mono) e grava o que volta
-simple-phone call 1002 --server pbx.example.com --user 1001 --media wav --wav aviso.wav --record volta.wav
+# Toca um WAV (8 kHz mono) em loop e grava o que volta
+simple-phone call 1002 --server pbx.example.com --user 1001 --media wav --wav aviso.wav --loop --record volta.wav
 # Conversa: microfone e alto-falante
 simple-phone call 1002 --server pbx.example.com --user 1001 --media mic --speaker
 # Mostra cada mensagem SIP e os contadores RTP enquanto acontecem

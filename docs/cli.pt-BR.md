@@ -66,12 +66,16 @@ simple-phone call 1002 --server pbx --user 1001 --media wav --wav reference.wav 
 | `--profile ARQUIVO` | JSON com quaisquer campos de `Settings`, mais `password_env` | |
 | `--password-env` | Variável com a senha | `SIP_PASSWORD` |
 | `--set NOME=VALOR` | Qualquer outro campo de `Settings`, ex.: `--set srtp=mandatory` | |
-| `--media` | `silent`, `echo`, `wav` ou `mic` | silent |
+| `--media` | `silent`, `echo`, `wav`, `mic`, `tone` ou `noise` | silent |
+| `--tone HZ` | Frequência do `--media tone` | 1000 |
+| `--loop` | Repete o `--wav` em vez de tocar uma vez | desligado |
 | `--wav`, `--record` | WAV a enviar; WAV para gravar o que chega | |
 | `--speaker` | Toca o áudio recebido nesta máquina | desligado |
 | `--codec` | `auto`, ou nomes como `PCMA,PCMU,opus` | auto |
 | `--no-amd` | Desliga a detecção de secretária eletrônica | ligado |
 | `--duration` | Segundos conectado (`call`, `answer`) | 15 |
+| `--media-delay` | Segundos de silêncio depois do atendimento antes do `--media` começar (`call`, `answer`) | 0 |
+| `--answer-delay` | Segundos tocando antes de o `answer` atender | 0 |
 | `--timeout` | Segundos para registrar, para ser atendida e para esperar uma chamada | 30 |
 | `--header 'Nome: valor'` | Header extra, repetível (`call`, `options`, `message`) | |
 | `--dtmf`, `--dtmf-delay` | Dígitos RFC 4733, enviados tantos segundos após o atendimento (`call`, `answer`) | nenhum, 2 |
@@ -86,8 +90,10 @@ As flags têm precedência sobre o perfil, e `--set` sobre os dois. `--set` lê 
 |---|---|
 | `silent` | Silêncio. O RTP continua fluindo (padrão) |
 | `echo` | O áudio que recebe, decodificado e codificado de novo |
-| `wav` | O `--wav` uma vez, depois silêncio. PCM 16 bits, mono, 8 kHz |
+| `wav` | O `--wav` uma vez, depois silêncio (`--loop` repete). PCM 16 bits, mono, 8 kHz |
 | `mic` | O microfone |
+| `tone` | Um tom senoidal contínuo de `--tone` Hz |
+| `noise` | Ruído tão alto quanto a fala: o AMD ou a detecção de fala do outro lado o toma por alguém falando |
 
 ```bash
 ffmpeg -f lavfi -i "sine=frequency=1000:sample_rate=8000:duration=60" -ac 1 -c:a pcm_s16le reference.wav

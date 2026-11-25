@@ -25,6 +25,7 @@ __lazy_modules__ = [
     "json",
     "rich.table",
     "simple_phone.call",
+    "simple_phone.media",
     "simple_phone.phone",
 ]
 
@@ -36,6 +37,7 @@ import getpass
 import json
 import os
 import sys
+import tempfile
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -47,6 +49,7 @@ from rich.table import Table
 from .call import Call
 from .core.config import MEDIA_MODES
 from .core.profiles import load_profile
+from .media import noise, save_wav, tone
 from .models import PhoneError, Settings, Timeouts, WaitTimeout
 from .phone import AsyncPhone
 from .version import PJSIP_VERSION, __version__
@@ -55,6 +58,7 @@ console = Console(highlight=False)
 SETTINGS = {f.name for f in dataclasses.fields(Settings)}
 STATE_STYLE = {"CONFIRMED": "green", "DISCONNECTED": "red", "EARLY": "yellow"}
 # devices, and doctor without a server: the endpoint alone, no network
+GENERATED = ("tone", "noise")  # --media values the command makes itself
 LOCAL = Settings(server="127.0.0.1", user="local", register=False, log_level=1)
 
 # -- arguments --
@@ -94,8 +98,21 @@ def parse_args(argv=None):
 
     group = common.add_argument_group("media")
     add = group.add_argument
-    add("--media", choices=MEDIA_MODES, help="what to send (default silent)")
+    add(
+        "--media",
+        choices=(*MEDIA_MODES, *GENERATED),
+        help="what to send (default silent); tone and noise are generated",
+    )
     add("--wav", help="8 kHz mono WAV to send with --media wav")
+    add(
+        "--loop", dest="wav_loop", action="store_const", const=True, help="repeat --wav"
+    )
+    add(
+        "--tone",
+        type=float,
+        metavar="HZ",
+        help="frequency of --media tone (default 1000)",
+    )
     add("--speaker", action="store_const", const=True, help="play received audio")
     add("--record", metavar="WAV", help="record received audio")
     add("--codec", help="auto, or names such as PCMA,PCMU,opus")
@@ -168,7 +185,19 @@ def parse_args(argv=None):
             default=2.0,
             help="seconds after the answer (default 2)",
         )
+        sub.add_argument(
+            "--media-delay",
+            type=float,
+            default=0.0,
+            help="send silence for this many seconds after the answer, then --media",
+        )
         sub.add_argument("--json", metavar="FILE", help="save the full report")
+    answer.add_argument(
+        "--answer-delay",
+        type=float,
+        default=0.0,
+        help="let it ring this many seconds before answering",
+    )
     commands.add_parser(
         "doctor",
         parents=[common],
@@ -206,12 +235,24 @@ def settings_from(opt):
             values[name] = text
     # Like curl, without an account: options/message always, call/answer
     # when neither --server nor --profile is given. Flags and profile win.
+    values = generated_audio(values, getattr(opt, "tone", None))
     if opt.command in ("options", "message") or not (opt.server or opt.profile):
         values = anonymous_defaults(getattr(opt, "dest", None)) | values
     values.setdefault("log_level", 4 if opt.verbose else 1)
     if not values.get("server") or not values.get("user"):
         raise ValueError("--server and --user (or --profile) are required")
     return Settings(**values), password_env
+
+
+def generated_audio(values, hz=None):
+    """--media tone or noise: a looped WAV made here, sent as --media wav."""
+    kind = values.get("media")
+    if kind not in GENERATED:
+        return values
+    # 1 s of a whole number of cycles loops without a click
+    pcm = tone(hz or 1000, 1) if kind == "tone" else noise(5)
+    path = save_wav(Path(tempfile.gettempdir()) / f"simple-phone-{kind}.wav", pcm)
+    return values | {"media": "wav", "wav": str(path), "wav_loop": True}
 
 
 def anonymous_defaults(dest=None):
@@ -283,7 +324,9 @@ async def one_call(opt, settings, password):
     """Dial or answer, keep the call for --duration, hang up. Returns the
     call (None if it never started) and the error, if any."""
     timeouts = Timeouts(register=opt.timeout, setup=opt.timeout)
-    phone = AsyncPhone(settings, password=password, timeouts=timeouts)
+    # --media-delay: answer with silence; talk() sends the media later
+    first = "silent" if opt.media_delay else settings.media
+    phone = AsyncPhone(settings, password=password, timeouts=timeouts, media=first)
     show(phone, opt)
     call, error = None, None
     async with phone:
@@ -292,6 +335,7 @@ async def one_call(opt, settings, password):
                 console.print(f"Waiting for a call to [bold]{phone.uri}[/] …")
                 call = await phone.incoming(timeout=timeouts.setup)
                 console.print(f"[bold]Incoming[/] {call.remote_uri}")
+                await asyncio.sleep(opt.answer_delay)  # ringing meanwhile
                 await call.answer()
             else:
                 phone.on(AsyncPhone.Incoming)(lambda e: e.call.reject(486))
@@ -299,7 +343,7 @@ async def one_call(opt, settings, password):
                 call = await phone.dial(target, headers=headers_from(opt))
                 console.print(f"[bold]Calling[/] {call.destination}")
             await call.answered(timeout=timeouts.setup)
-            await talk(call, opt)
+            await talk(call, opt, settings)
         except asyncio.CancelledError:  # Ctrl+C: hang up and still report
             if task := asyncio.current_task():
                 task.uncancel()
@@ -312,19 +356,30 @@ async def one_call(opt, settings, password):
     return call, error
 
 
-async def talk(call, opt):
-    """Send --dtmf after --dtmf-delay; return after --duration or hangup."""
+async def talk(call, opt, settings):
+    """After the answer: --media at --media-delay and --dtmf at --dtmf-delay.
+    Returns after --duration, or sooner if the far end hangs up."""
     loop = asyncio.get_running_loop()
-    end = loop.time() + opt.duration
-    if opt.dtmf and opt.dtmf_delay < opt.duration:
-        if await ended_within(call, opt.dtmf_delay):
-            return
+    start = loop.time()
+
+    async def send_media():
+        await call.send(settings.media, settings.wav, loop=settings.wav_loop)
+        console.print(f"[bold]Media →[/] {opt.media or settings.media}")
+
+    async def send_dtmf():
         try:
             await call.dtmf(opt.dtmf)
             console.print(f"[bold]DTMF →[/] {opt.dtmf}")
         except PhoneError as exc:  # e.g. no telephone-event: the call goes on
             console.print(f"[yellow]DTMF not sent:[/] {exc}")
-    await ended_within(call, end - loop.time())
+
+    steps = [(opt.media_delay, send_media)] if opt.media_delay else []
+    steps += [(opt.dtmf_delay, send_dtmf)] if opt.dtmf else []
+    for at, step in sorted(steps, key=lambda s: s[0]):
+        if at >= opt.duration or await ended_within(call, start + at - loop.time()):
+            return
+        await step()
+    await ended_within(call, start + opt.duration - loop.time())
 
 
 async def request(opt, settings, password):

@@ -74,6 +74,15 @@ class ArgumentsTest(unittest.TestCase):
                 cli.parse_args(argv)
             self.assertIn(expected, errors.getvalue())
 
+    def test_tone_and_noise_become_a_looped_wav(self):
+        for media in ("tone", "noise"):
+            opt = cli.parse_args(
+                ["call", "1002@127.0.0.1", "--media", media, "--tone", "425"]
+            )
+            settings, _ = cli.settings_from(opt)
+            self.assertEqual((settings.media, settings.wav_loop), ("wav", True))
+            self.assertTrue(Path(settings.wav).exists())
+
     def test_bad_input(self):
         with self.assertRaises(ValueError):
             cli.settings_from(cli.parse_args(["call", "1", "--server", "x"]))
@@ -122,6 +131,24 @@ class CommandsTest(unittest.TestCase):
         time.sleep(1.5)  # its endpoint starts
         with contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(cli.main(["call", "127.0.0.1:5099", "--duration", "1"]), 0)
+
+    def test_media_starts_after_its_delay(self):
+        answer = subprocess.Popen(
+            [sys.executable, "-m", "simple_phone.cli", "answer", "--local-port", "5102",
+             "--rtp-port", "43200", "--answer-delay", "1", "--duration", "4",
+             "--timeout", "15"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )  # fmt: skip
+        self.addCleanup(answer.wait)
+        self.addCleanup(answer.kill)
+        time.sleep(1.5)  # its endpoint starts
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            status = cli.main(["call", "127.0.0.1:5102", "--media", "noise",
+                               "--media-delay", "1", "--duration", "2"])  # fmt: skip
+        self.assertEqual(status, 0, output.getvalue())
+        self.assertIn("Media → noise", output.getvalue())
+        self.assertRegex(output.getvalue(), r"answer time +1\.\d")  # --answer-delay
 
     def test_options_and_message_print_the_response(self):
         far = subprocess.Popen(
