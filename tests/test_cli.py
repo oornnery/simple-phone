@@ -1,3 +1,5 @@
+import contextlib
+import io
 import json
 import subprocess
 import sys
@@ -6,7 +8,7 @@ import time
 import unittest
 from pathlib import Path
 
-from simple_phone import cli
+from simple_phone import Settings, cli
 
 LOCAL = ["--server", "127.0.0.1", "--no-register"]
 
@@ -33,6 +35,12 @@ class ArgumentsTest(unittest.TestCase):
         self.assertIs(settings.ice, True)
         self.assertEqual(password_env, "PW")
         Path(f.name).unlink()
+
+    def test_targets_become_uris(self):
+        settings = Settings(server="pbx", user="1001")
+        self.assertEqual(settings.uri("1002"), "sip:1002@pbx")
+        self.assertEqual(settings.uri("1002@host:5094"), "sip:1002@host:5094")
+        self.assertEqual(settings.uri("sips:1002@host"), "sips:1002@host")
 
     def test_bad_input(self):
         with self.assertRaises(ValueError):
@@ -70,6 +78,27 @@ class CommandsTest(unittest.TestCase):
         output, _ = answer.communicate(timeout=20)
         self.assertEqual(answer.returncode, 0, output)
         self.assertIn("DTMF ← 7", output)
+
+    def test_options_and_message_print_the_response(self):
+        far = subprocess.Popen(
+            [sys.executable, "-m", "simple_phone.cli", "answer", *LOCAL,
+             "--user", "1002", "--local-port", "5094", "--rtp-port", "41600",
+             "--timeout", "15"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )  # fmt: skip
+        self.addCleanup(far.wait)
+        self.addCleanup(far.kill)
+        time.sleep(1.5)  # its endpoint starts
+        for command in (["options"], ["message"]):
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                args = [*command, "sip:1002@127.0.0.1:5094", *LOCAL, "--user", "1001"]
+                if command == ["message"]:
+                    args.append("hello")
+                status = cli.main([*args, "--header", "X-Test: 1"])
+            self.assertEqual(status, 0, output.getvalue())
+            self.assertIn("SIP/2.0 200 OK", output.getvalue())
+            self.assertIn("CSeq:", output.getvalue())
 
 
 if __name__ == "__main__":

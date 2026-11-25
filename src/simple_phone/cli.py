@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Any
 
 from rich.console import Console
+from rich.markup import escape
 from rich.table import Table
 
 from .call import Call
@@ -117,14 +118,22 @@ def parse_args(argv=None):
     )
     commands = parser.add_subparsers(dest="command", required=True)
     call = commands.add_parser("call", parents=[common], help="dial and report")
-    call.add_argument("dest", help="number or sip: URI")
-    call.add_argument(
-        "--header",
-        action="append",
-        default=[],
-        metavar="'Name: value'",
-        help="extra INVITE header",
+    options = commands.add_parser(
+        "options", parents=[common], help="send OPTIONS, print the response"
     )
+    message = commands.add_parser(
+        "message", parents=[common], help="send a MESSAGE, print the response"
+    )
+    for sub in (call, options, message):
+        sub.add_argument("dest", help="number or sip: URI")
+        sub.add_argument(
+            "--header",
+            action="append",
+            default=[],
+            metavar="'Name: value'",
+            help="extra header, repeatable",
+        )
+    message.add_argument("text", help="the message body (text/plain)")
     answer = commands.add_parser(
         "answer", parents=[common], help="wait for one call and answer it"
     )
@@ -151,9 +160,14 @@ def parse_args(argv=None):
     commands.add_parser("devices", help="audio devices")
 
     opt = parser.parse_args(argv)
-    if opt.command == "call" and any(":" not in h for h in opt.header):
+    if any(":" not in h for h in getattr(opt, "header", [])):
         parser.error("--header must look like 'Name: value'")
     return opt
+
+
+def headers_from(opt):
+    pairs = (h.split(":", 1) for h in opt.header)
+    return {name.strip(): value.strip() for name, value in pairs}
 
 
 def settings_from(opt):
@@ -238,9 +252,7 @@ async def one_call(opt, settings, password):
                 await call.answer()
             else:
                 phone.on(AsyncPhone.Incoming)(lambda e: e.call.reject(486))
-                pairs = (h.split(":", 1) for h in opt.header)
-                headers = {k.strip(): v.strip() for k, v in pairs}
-                call = await phone.dial(opt.dest, headers=headers)
+                call = await phone.dial(opt.dest, headers=headers_from(opt))
                 console.print(f"[bold]Calling[/] {call.destination}")
             await call.answered(timeout=timeouts.setup)
             await talk(call, opt)
@@ -269,6 +281,65 @@ async def talk(call, opt):
         except PhoneError as exc:  # e.g. no telephone-event: the call goes on
             console.print(f"[yellow]DTMF not sent:[/] {exc}")
     await ended_within(call, end - loop.time())
+
+
+async def request(opt, settings, password):
+    """options / message: send one request outside a call and print the
+    response like an HTTP client does. Exit 0 on a 2xx."""
+    phone = AsyncPhone(
+        settings, password=password, timeouts=Timeouts(register=opt.timeout)
+    )
+    show(phone, opt)
+    received = []
+    phone.on(AsyncPhone.Sip)(lambda e: received.append(e.message))
+    method, extra = opt.command.upper(), {"headers": headers_from(opt)}
+    async with phone:
+        if method == "OPTIONS":
+            response = await phone.options(opt.dest, timeout=opt.timeout, **extra)
+        else:
+            response = await phone.message(
+                opt.dest, opt.text, timeout=opt.timeout, **extra
+            )
+        await asyncio.sleep(0)  # the SIP log of the response
+    full = next(
+        (
+            m
+            for m in reversed(received)
+            if m.direction == "RX"
+            and m.cseq_method == method
+            and m.code == response.code
+        ),
+        None,
+    )
+    if full is None:
+        console.print(status_style(response.code, f"{response.code} {response.reason}"))
+    else:
+        print_message(full)
+    if response.code in (401, 407):
+        console.print(
+            "[dim]PJSUA sends it without credentials, so a PBX that challenges it answers 401.[/]"
+        )
+    return 0 if response.code < 300 else 1
+
+
+def status_style(code, text):
+    style = "green" if code < 300 else "yellow" if code < 400 else "red"
+    return f"[bold {style}]{escape(text)}[/]"
+
+
+def print_message(message):
+    """A SIP message like an HTTP client prints a response."""
+    head, _, body = message.raw.replace("\r\n", "\n").partition("\n\n")
+    first, *lines = head.split("\n")
+    console.print(status_style(message.code or 0, first), soft_wrap=True)
+    for line in lines:
+        name, sep, value = line.partition(":")
+        console.print(f"[cyan]{escape(name)}[/]{sep}{escape(value)}", soft_wrap=True)
+    if body.strip():
+        console.print()
+        console.print(escape(body.rstrip()), soft_wrap=True)
+    if message.truncated:
+        console.print("[dim](truncated)[/]")
 
 
 async def ended_within(call, seconds):
@@ -443,6 +514,8 @@ def main(argv=None):
         password = password_for(settings, password_env)
         if opt.command == "doctor":
             return asyncio.run(doctor(opt, settings, password))
+        if opt.command in ("options", "message"):
+            return asyncio.run(request(opt, settings, password))
         call, error = asyncio.run(one_call(opt, settings, password))
         if opt.json:
             save_json(opt.json, call, error)

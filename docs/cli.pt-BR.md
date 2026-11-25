@@ -6,13 +6,18 @@
 simple-phone call 1002 --server pbx.example.com --user 1001 --media echo --duration 30
 simple-phone answer --server pbx.example.com --user 1002 --media echo --timeout 600
 simple-phone doctor --server pbx.example.com --user 1001
+simple-phone options 1002 --server pbx.example.com --user 1001
+simple-phone message 1002 'olá' --server pbx.example.com --user 1001
 simple-phone devices
 ```
 
 - `call` registra, disca, fica conectado por `--duration` segundos, desliga e mostra um resumo. A chamada termina antes se o outro lado desligar ou se você apertar Ctrl+C.
 - `answer` espera até `--timeout` segundos por uma chamada e depois faz o mesmo.
 - `doctor` confere versões, codecs, dispositivos de áudio, NAT (quando há `stun_servers`), REGISTER e um OPTIONS. Sem `--server`, confere só esta máquina.
+- `options` e `message` enviam uma requisição fora de chamada e mostram a resposta, como um cliente HTTP: linha de status, headers e corpo. Saem com 0 numa resposta 2xx. O PJSUA as envia sem credenciais, então um PABX que as desafia responde 401.
 - `devices` lista os dispositivos de áudio.
+
+Um destino é um número (`1002`, que vira `sip:1002@<domínio>`), `usuário@host` ou uma URI `sip:`.
 
 A senha vem de `$SIP_PASSWORD` ou é pedida no terminal:
 
@@ -58,7 +63,7 @@ simple-phone call 1002 --server pbx --user 1001 --media wav --wav reference.wav 
 | `--no-amd` | Desliga a detecção de secretária eletrônica | ligado |
 | `--duration` | Segundos conectado (`call`, `answer`) | 15 |
 | `--timeout` | Segundos para registrar, para ser atendida e para esperar uma chamada | 30 |
-| `--header 'Nome: valor'` | Header extra no INVITE, repetível (`call`) | |
+| `--header 'Nome: valor'` | Header extra, repetível (`call`, `options`, `message`) | |
 | `--dtmf`, `--dtmf-delay` | Dígitos RFC 4733, enviados tantos segundos após o atendimento (`call`, `answer`) | nenhum, 2 |
 | `--json ARQUIVO` | Salva o relatório completo | |
 | `--trace`, `--stats`, `-v` | Uma linha por mensagem SIP; contadores RTP a cada segundo; log do PJSIP | desligado |

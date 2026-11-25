@@ -6,13 +6,18 @@
 simple-phone call 1002 --server pbx.example.com --user 1001 --media echo --duration 30
 simple-phone answer --server pbx.example.com --user 1002 --media echo --timeout 600
 simple-phone doctor --server pbx.example.com --user 1001
+simple-phone options 1002 --server pbx.example.com --user 1001
+simple-phone message 1002 'hello' --server pbx.example.com --user 1001
 simple-phone devices
 ```
 
 - `call` registers, dials, stays connected for `--duration` seconds, hangs up and prints a summary. The call ends early if the far end hangs up or you press Ctrl+C.
 - `answer` waits up to `--timeout` seconds for a call, then does the same.
 - `doctor` checks versions, codecs, audio devices, NAT (when `stun_servers` is set), REGISTER and an OPTIONS ping. Without `--server` it checks only this machine.
+- `options` and `message` send one request outside a call and print the response, like an HTTP client: status line, headers and body. They exit with 0 on a 2xx. PJSUA sends them without credentials, so a PBX that challenges them answers 401.
 - `devices` lists audio devices.
+
+A target is a number (`1002`, which becomes `sip:1002@<domain>`), `user@host`, or a `sip:` URI.
 
 The password comes from `$SIP_PASSWORD` or is asked on the terminal:
 
@@ -58,7 +63,7 @@ simple-phone call 1002 --server pbx --user 1001 --media wav --wav reference.wav 
 | `--no-amd` | Skip answering-machine detection | on |
 | `--duration` | Seconds connected (`call`, `answer`) | 15 |
 | `--timeout` | Seconds to register, to be answered, and to wait for a call | 30 |
-| `--header 'Name: value'` | Extra INVITE header, repeatable (`call`) | |
+| `--header 'Name: value'` | Extra header, repeatable (`call`, `options`, `message`) | |
 | `--dtmf`, `--dtmf-delay` | RFC 4733 digits, sent this many seconds after the answer (`call`, `answer`) | none, 2 |
 | `--json FILE` | Save the full report | |
 | `--trace`, `--stats`, `-v` | One line per SIP message; RTP counters every second; PJSIP log | off |

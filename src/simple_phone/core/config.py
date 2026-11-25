@@ -89,7 +89,10 @@ class Config:
             raise ValueError("stats_interval must be positive and finite")
 
     def uri(self, target):
-        """'1002' becomes sip:1002@domain; a sip: URI is kept as is."""
+        """'1002' becomes sip:1002@domain, '1002@host' sip:1002@host; a
+        sip: URI is kept as is."""
         if target.startswith(("sip:", "sips:")):
             return target
+        if "@" in target:
+            return f"sip:{target}"
         return f"sip:{target}@{self.domain}"
