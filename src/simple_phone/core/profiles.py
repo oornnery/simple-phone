@@ -39,13 +39,15 @@ def load_account(path, base: Config, index: int = 1) -> tuple[Config, str]:
     values = load_profile(path)
     password_env = values.pop("password_env", "SIP_PASSWORD")
     values.setdefault("account_id", Path(path).stem)
-    values.setdefault("rtp_port", base.rtp_port + 200 * index)
+    return derive_account(base, values, index), password_env
+
+
+def derive_account(base: Config, values: dict, index: int = 1) -> Config:
+    """`values` over `base`, as another identity with its own RTP range."""
     # A different identity must not silently reuse the main account's login
     # or routing. Media/device defaults can still be inherited.
-    values.setdefault("auth_user", None)
+    values = {"rtp_port": base.rtp_port + 200 * index, "auth_user": None, **values}
     if values.get("server", base.server) != base.server:
-        values.setdefault("domain", None)
-        values.setdefault("proxy", None)
-        values.setdefault("port", 5060)
+        values = {"domain": None, "proxy": None, "port": 5060, **values}
     # The endpoint validates the rest when it opens the account.
-    return replace(base, **values), password_env
+    return replace(base, **values)

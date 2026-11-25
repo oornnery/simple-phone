@@ -25,7 +25,7 @@ from uuid import uuid4
 
 from .call import Call
 from .core.engine import Engine
-from .core.profiles import load_account, load_profile
+from .core.profiles import derive_account, load_account, load_profile
 from .events import CallEvents, PhoneEvents
 from .models import (
     Limits,
@@ -134,13 +134,25 @@ class AsyncPhone(PhoneEvents):
         if self.settings.register and self.settings.auto_register:
             await self.wait_registered()
 
-    async def account(self, settings, *, password=None) -> AsyncPhone:
-        """Another identity on this endpoint, from Settings or a JSON profile
-        path. Shares the SIP port; gets its own RTP range and calls."""
+    async def account(self, settings=None, *, password=None, **fields) -> AsyncPhone:
+        """Another identity on this endpoint. Shares the SIP port; gets its
+        own RTP range and calls.
+
+            await phone.account(user="1002")  # this phone's settings, another user
+            await phone.account("1002.json")  # a JSON profile
+            await phone.account(Settings(...))
+        """
         hub = self._require()
-        if not isinstance(settings, Settings):  # a profile path
+        if isinstance(settings, Settings):
+            settings = replace(settings, **fields)
+        elif settings is not None:  # a profile path
             settings, variable = load_account(settings, self.settings, len(hub.phones))
             password = password or os.environ.get(variable)
+        elif "user" not in fields:
+            raise ValueError("account() needs user=... (or Settings, or a profile)")
+        else:
+            values = {"account_id": fields["user"], **fields}
+            settings = derive_account(self.settings, values, len(hub.phones))
         other = AsyncPhone(
             settings,
             password=password,

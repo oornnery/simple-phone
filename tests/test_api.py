@@ -65,6 +65,21 @@ class ApiTest(unittest.IsolatedAsyncioTestCase):
         async def answer(event):
             await event.call.answer(media="echo")
 
+    async def test_account_from_keyword_fields(self):
+        third = await self.phone.account(user="1003")
+        self.assertEqual(third.account_id, "1003")
+        self.assertEqual(third.settings.rtp_port, 46400)  # 200 above the last
+        self.assertEqual(third.uri, "sip:1003@127.0.0.1:5090")
+
+        @third.on(AsyncPhone.Incoming)
+        async def answer(event):
+            await event.call.answer()
+
+        async with self.phone.call(third.uri) as call:
+            self.assertEqual(call.state, "CONFIRMED")
+        with self.assertRaises(ValueError):
+            await self.phone.account(register=False)
+
     async def test_call_scope_events_and_report(self):
         await self.answer_with_echo()
         digits = []

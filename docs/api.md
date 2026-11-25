@@ -42,7 +42,7 @@ The most used settings:
 | `text`, `mwi` | Offer real-time text; subscribe to voicemail status | `False` |
 | `follow_redirects`, `accept_transfers` | Follow a 3xx; accept a REFER | `False`, `True` |
 
-`await phone.account(settings, password=...)` adds another account on the same endpoint. It shares the SIP port and needs its own `rtp_port`, at least 102 away. With `Settings(register=False)`, two accounts can call each other at `phone.uri`, with no server.
+`await phone.account(user="1002", password=...)` adds another account on the same endpoint. It keeps this phone's settings except the ones you pass, shares the SIP port, and takes RTP ports 200 above the last account. It also takes a JSON profile path or a `Settings`. With `register=False`, two accounts can call each other at `phone.uri`, with no server.
 
 `Limits(max_calls=4, calls_per_second=None)` paces outgoing calls: `dial()` waits for a free slot and raises `PoolTimeout` after `Timeouts.pool` seconds. `Timeouts(register=30, setup=30, pool=30, request=10)` sets the default waits.
 

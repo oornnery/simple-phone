@@ -42,7 +42,7 @@ As configurações mais usadas:
 | `text`, `mwi` | Oferece texto em tempo real; assina o estado da caixa postal | `False` |
 | `follow_redirects`, `accept_transfers` | Segue um 3xx; aceita um REFER | `False`, `True` |
 
-`await phone.account(settings, password=...)` adiciona outra conta no mesmo endpoint. Ela divide a porta SIP e precisa de um `rtp_port` próprio, a pelo menos 102 de distância. Com `Settings(register=False)`, duas contas ligam uma para a outra em `phone.uri`, sem servidor.
+`await phone.account(user="1002", password=...)` adiciona outra conta no mesmo endpoint. Ela herda as configurações deste telefone, menos as que você passar, divide a porta SIP e usa portas RTP 200 acima da última conta. Também aceita o caminho de um perfil JSON ou um `Settings`. Com `register=False`, duas contas ligam uma para a outra em `phone.uri`, sem servidor.
 
 `Limits(max_calls=4, calls_per_second=None)` dita o ritmo das chamadas feitas: `dial()` espera uma vaga e levanta `PoolTimeout` depois de `Timeouts.pool` segundos. `Timeouts(register=30, setup=30, pool=30, request=10)` define as esperas padrão.
 
