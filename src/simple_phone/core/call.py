@@ -352,7 +352,7 @@ class Call(pj.Call):
         if config.record:
             if self.recorder is None:
                 self.recorder = pj.AudioMediaRecorder()
-                self.recorder.createRecorder(config.record)
+                self.recorder.createRecorder(str(config.record))
             self.connect(audio, self.recorder)
         for stream in self.streams_out:
             self.connect(stream, audio)
@@ -380,7 +380,7 @@ class Call(pj.Call):
             if self.player is None:
                 self.player = pj.AudioMediaPlayer()
                 options = 0 if config.wav_loop else pj.PJMEDIA_FILE_NO_LOOP
-                self.player.createPlayer(config.wav, options)
+                self.player.createPlayer(str(config.wav), options)
             self.tx.append(self.connect(self.player, audio))
 
     def unlink(self, links):
