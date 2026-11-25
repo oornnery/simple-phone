@@ -14,6 +14,13 @@ sudo apt install libasound2t64            # only if ALSA is missing (libasound2 
 pip install 'simple-phone[stt,tts]'       # optional: Whisper and Piper for say() and listen()
 ```
 
+Or run it without installing, with [uv](https://docs.astral.sh/uv/). `--python 3.14` is needed while uv defaults to a newer Python:
+
+```bash
+uvx --python 3.14 simple-phone doctor --server pbx.example.com --user 1001   # REGISTER and OPTIONS
+uvx --python 3.14 simple-phone call 1002 --server pbx.example.com --user 1001
+```
+
 Check the install, and then your account:
 
 ```bash
