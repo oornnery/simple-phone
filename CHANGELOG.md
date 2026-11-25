@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.4
+
+- `simple_phone.media` makes test audio: `tone(hz, seconds)`, `noise(seconds)` (as loud as speech, with no pitch), `silence(seconds)` and `save_wav(path, pcm)`.
+- The examples and tests use them instead of their own copies.
+
 ## 0.1.3
 
 - `phone.account(user="1002")` adds an account from keyword fields: it keeps this phone's settings except the ones passed, and takes RTP ports 200 above the last account. A `Settings` or a profile path still works.
