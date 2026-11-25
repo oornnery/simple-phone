@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.5
+
+- Wheels for Python 3.15, next to 3.14. `uvx simple-phone` works without `--python`.
+- `simple-phone options DEST` and `simple-phone message DEST TEXT` send one request and print the SIP response like an HTTP client: status line, headers and body.
+- A target can be `user@host`, besides a number or a `sip:` URI.
+- Fixed: `simple-phone devices` showed a SWIG pointer as the id, and Python warned about a leak per device. The id is now the position in the list.
+- On Python 3.15, lazy imports (PEP 810) cut `simple-phone --version` from about 750 ms to 330 ms.
+
 ## 0.1.4
 
 - `simple_phone.media` makes test audio: `tone(hz, seconds)`, `noise(seconds)` (as loud as speech, with no pitch), `silence(seconds)` and `save_wav(path, pcm)`.
