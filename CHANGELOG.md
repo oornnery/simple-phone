@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.6
+
+- A failure while PJSIP starts (port in use, unknown codec or audio device) prints `error: ...` instead of a traceback. In the API it is a `PhoneError`.
+- `capture_device` and `playback_device` must be ids from `simple-phone devices`. An unknown id used to give a silent call.
+- `unregister()` raises `WaitTimeout` on timeout, like the other waits.
+- The tests run the audio-device paths (device list, mic, speaker) on ALSA null devices, so they run in CI without a sound card.
+
 ## 0.1.5
 
 - Wheels for Python 3.15, next to 3.14. `uvx simple-phone` works without `--python`.
