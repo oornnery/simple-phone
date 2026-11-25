@@ -109,7 +109,7 @@ The JSON report adds the SIP and registration events with UTC times, the DTMF re
 
 Every outgoing call is classified while it runs, in three layers:
 
-1. **SIP:** an answer in under 1 s, with no 18x, hints at a machine.
+1. **SIP:** An answer in under 1 s, with no 18x, hints at a machine.
 2. **Speech pattern**, like Asterisk's `AMD()`: a short "hello?" and then silence is `human`. Speech longer than 1.5 s, or 3 words in a row, is `machine` (an IVR or a voicemail greeting).
 3. **Tones** (Goertzel): SIT tones (913.8, 1370.6 and 1776.7 Hz), even in early media, give `sit`. A plain beep after the answer gives `voicemail`.
 

@@ -77,10 +77,12 @@ One-time setup on PyPI: add a trusted publisher (Account → Publishing) with th
 To release:
 
 1. Bump `version` in `pyproject.toml` and `__version__` in `src/simple_phone/version.py`. `check_package.py --metadata` fails if they differ.
-2. Tag and push:
+2. Run `uv lock`, so `uv sync --locked` accepts the new version.
+3. Add the version to `CHANGELOG.md` and commit as `chore: release X.Y.Z`.
+4. Tag and push:
 
    ```bash
-   git tag v0.0.1 && git push origin v0.0.1
+   git tag vX.Y.Z && git push origin main vX.Y.Z
    ```
 
 PyPI never accepts the same version twice. To try a release first, build locally with `uvx cibuildwheel --platform linux` (needs Docker) and upload to TestPyPI: `uv publish --publish-url https://test.pypi.org/legacy/ wheelhouse/*`.

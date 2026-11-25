@@ -109,7 +109,7 @@ O relatório JSON traz também os eventos SIP e de registro com horário UTC, os
 
 Toda chamada feita é classificada enquanto acontece, em três camadas:
 
-1. **SIP:** atender em menos de 1 s, sem 18x, indica máquina.
+1. **SIP:** Atender em menos de 1 s, sem 18x, indica máquina.
 2. **Padrão de fala**, como o `AMD()` do Asterisk: um "alô?" curto seguido de silêncio é `human`. Fala de mais de 1,5 s, ou 3 palavras seguidas, é `machine` (URA ou saudação de caixa postal).
 3. **Tons** (Goertzel): tons SIT (913,8, 1370,6 e 1776,7 Hz), mesmo em early media, dão `sit`. Um bipe puro depois do atendimento dá `voicemail`.
 

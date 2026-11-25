@@ -77,10 +77,12 @@ Configuração única no PyPI: cadastre um trusted publisher (Account → Publis
 Para publicar:
 
 1. Atualize `version` no `pyproject.toml` e `__version__` em `src/simple_phone/version.py`. O `check_package.py --metadata` falha se forem diferentes.
-2. Crie a tag e envie:
+2. Rode `uv lock`, para que o `uv sync --locked` aceite a versão nova.
+3. Acrescente a versão ao `CHANGELOG.md` e faça o commit `chore: release X.Y.Z`.
+4. Crie a tag e envie:
 
    ```bash
-   git tag v0.0.1 && git push origin v0.0.1
+   git tag vX.Y.Z && git push origin main vX.Y.Z
    ```
 
 O PyPI nunca aceita a mesma versão duas vezes. Para testar antes, gere localmente com `uvx cibuildwheel --platform linux` (precisa de Docker) e envie ao TestPyPI: `uv publish --publish-url https://test.pypi.org/legacy/ wheelhouse/*`.
