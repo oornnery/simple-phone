@@ -1,8 +1,8 @@
-"""Sinalização: headers, mensagens SIP, OPTIONS/MESSAGE, INFO, UPDATE e o ladder.
+"""Signalling: headers, SIP messages, OPTIONS/MESSAGE, INFO, UPDATE and the ladder.
 
-`phone.request(método, destino)` manda qualquer requisição fora de chamada.
-Um receptor PJSUA (como o daqui) não responde NOTIFY/INFO fora de chamada;
-um PABX responde.
+`phone.request(method, target)` sends any request outside a call. A PJSUA
+receiver (like the one here) does not answer NOTIFY or INFO outside a call;
+a PBX does.
 """
 
 import asyncio
@@ -20,15 +20,15 @@ async def main():
         async def answer(event):
             await event.call.answer(media="echo")
 
-        @far.on(AsyncPhone.Message)  # MESSAGE fora de chamada
-        @far.on(Call.Message)  # MESSAGE dentro da chamada
+        @far.on(AsyncPhone.Message)  # MESSAGE outside a call
+        @far.on(Call.Message)  # MESSAGE inside the call
         def received(event):
-            print("[outro lado] MESSAGE:", event.body)
+            print("[far end] MESSAGE:", event.body)
 
-        # Fora de chamada
+        # Outside a call
         response = await phone.options(far.uri)
         print("OPTIONS:", response.code, response.reason)
-        response = await phone.message(far.uri, "oi, fora da chamada")
+        response = await phone.message(far.uri, "hi, outside the call")
         print("MESSAGE:", response.code)
 
         headers = {"P-Asserted-Identity": "<sip:1001@127.0.0.1>", "X-Campaign": "abc"}
@@ -37,23 +37,23 @@ async def main():
                 Call.Sip,
                 lambda e: e.message.direction == "TX" and e.message.method == "INVITE",
             )
-            print("INVITE com:", invite.message.headers["x-campaign"])
-            print("200 OK de:", call.response.headers.get("contact"))
+            print("INVITE with:", invite.message.headers["x-campaign"])
+            print("200 OK from:", call.response.headers.get("contact"))
 
-            # Dentro da chamada
+            # Inside the call
             info = await call.request(
                 "INFO",
                 "Signal=5\r\nDuration=160\r\n",
                 content_type="application/dtmf-relay",
             )
             print("INFO:", info.code, info.reason)
-            await call.message("oi, dentro da chamada")
-            await call.update()  # renova a sessão sem re-INVITE
-            dump = await call.dump()  # diagnóstico do PJSUA: diálogo, SDP, mídia
+            await call.message("hi, inside the call")
+            await call.update()  # refreshes the session without a re-INVITE
+            dump = await call.dump()  # PJSUA's diagnostics: dialog, SDP, media
             print("Dump:", dump.splitlines()[0].strip(), "...")
 
-        print("Fluxo:", " ".join(call.trace.flow()))
-        for message in call.trace:  # o ladder inteiro desta chamada
+        print("Flow:", " ".join(call.trace.flow()))
+        for message in call.trace:  # the whole ladder of this call
             arrow = "-->" if message.direction == "TX" else "<--"
             print(" ", arrow, message.label)
 

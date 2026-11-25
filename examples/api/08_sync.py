@@ -1,6 +1,6 @@
-"""A mesma API sem async/await: Phone (como httpx.Client ao lado do AsyncClient).
+"""The same API without async/await: Phone (like httpx.Client next to AsyncClient).
 
-Os handlers continuam `async def`: rodam no loop interno do Phone.
+Handlers can still be `async def`: they run on Phone's internal loop.
 """
 
 import time
@@ -20,6 +20,6 @@ with Phone(local.settings()) as phone:
     with phone.call(far.uri) as call:
         call.dtmf("1234#")
         event = call.wait_for(Call.Stats, lambda e: e.stats.rx_packets >= 50)
-        print("Pacotes recebidos:", event.stats.rx_packets)
+        print("Packets received:", event.stats.rx_packets)
         time.sleep(1)
     print("MOS:", call.report.mos)

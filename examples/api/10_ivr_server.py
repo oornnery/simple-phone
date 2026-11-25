@@ -1,10 +1,11 @@
-"""Uma URA de verdade, do lado que atende: fala com Piper e lê o teclado.
+"""An IVR on the answering side: speaks with Piper and reads the keypad.
 
     pip install 'simple-phone[tts]'
-    python 10_ivr_server.py        # SIP 5072; Ctrl+C sai
+    python 10_ivr_server.py        # SIP port 5072; Ctrl+C quits
 
-Ligue de outro terminal (11_listen.py ou um softphone) para sip:1002@127.0.0.1:5072. say(interrupt=True) para de
-falar quando quem ligou começa a falar (barge-in).
+Call sip:1002@127.0.0.1:5072 from another terminal (11_listen.py or a
+softphone). say(interrupt=True) stops talking as soon as the caller talks
+(barge-in).
 """
 
 import asyncio
@@ -13,12 +14,10 @@ import contextlib
 from simple_phone import AsyncPhone, Settings
 from simple_phone.media import PiperTTS
 
-MENU = (
-    "Olá. Para segunda via da fatura, digite 1. Para falar com um atendente, digite 9."
-)
+MENU = "Hello. For a copy of your bill, press 1. To talk to an agent, press 9."
 
 
-async def ura(event):
+async def ivr(event):
     call = event.call
     await call.answer()
     await asyncio.sleep(0.5)
@@ -26,20 +25,20 @@ async def ura(event):
         await call.say(MENU, interrupt=True)
         match await call.gather(length=1, timeout=6):
             case "1":
-                await call.say("Digite o seu CPF e, em seguida, tecle cerquilha.")
-                cpf = await call.gather(finish_on="#", timeout=20)
-                print("CPF recebido:", cpf)
+                await call.say("Enter your account number, then press the pound key.")
+                account = await call.gather(finish_on="#", timeout=20)
+                print("Account number:", account)
                 await call.say(
-                    "Pronto. A segunda via foi enviada para o seu e-mail. Obrigado."
+                    "Done. The copy of your bill was sent by email. Thank you."
                 )
                 break
             case "9":
-                await call.say("Transferindo para um atendente.")
+                await call.say("Transferring you to an agent.")
                 break
             case "":
-                await call.say("Não recebi nenhuma opção.")
+                await call.say("I did not get an option.")
             case _:
-                await call.say("Opção inválida.")
+                await call.say("Invalid option.")
     await call.hangup()
 
 
@@ -47,11 +46,11 @@ async def main():
     settings = Settings(
         server="127.0.0.1", user="1002", register=False, local_port=5072, rtp_port=42000
     )
-    tts = PiperTTS("pt_BR-faber-medium")
+    tts = PiperTTS("en_US-lessac-medium")
     await tts.load()
     async with AsyncPhone(settings, tts=tts) as phone:
-        phone.on(AsyncPhone.Incoming)(ura)
-        print("URA em", phone.uri, "(Ctrl+C sai)")
+        phone.on(AsyncPhone.Incoming)(ivr)
+        print("IVR at", phone.uri, "(Ctrl+C quits)")
         await phone.serve()
 
 

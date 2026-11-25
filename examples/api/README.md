@@ -23,5 +23,3 @@ python 01_call.py
 | [12_presence_text.py](12_presence_text.py) | Presence (`subscribe`, `set_presence`), `typing`, real-time text (`Settings(text=True)`, `send_text`), `Phone.Rejected` |
 
 Start `python 10_ivr_server.py` in another terminal before 11. Generated files (WAVs) go to `/tmp/simple-phone-examples/`.
-
-The comments inside the examples are in Portuguese.

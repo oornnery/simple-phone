@@ -1,5 +1,5 @@
-"""Controle de chamada: espera (hold), conferência, transferência cega e
-assistida. Três contas: nós (1001), 1002 e 1003, as duas atendendo em eco."""
+"""Call control: hold, conference, blind and attended transfer. Three
+accounts: us (1001), 1002 and 1003, both answering with echo."""
 
 import asyncio
 
@@ -20,30 +20,30 @@ async def main():
 
             @far.on(Call.TransferRequest)
             def refer(event):
-                print(f"[{event.phone.settings.user}] REFER para", event.target)
+                print(f"[{event.phone.settings.user}] REFER to", event.target)
 
-        # Espera
+        # Hold
         async with phone.call(b.uri) as call:
-            held = await call.hold()  # volta quando o re-INVITE é respondido
-            print("Em espera:", held.status)
+            held = await call.hold()  # returns when the re-INVITE is answered
+            print("On hold:", held.status)
             await call.unhold()
 
-        # Conferência e transferência assistida: B passa a falar com C
+        # Conference and attended transfer: B ends up talking to C
         async with phone.call(b.uri) as to_b, phone.call(c.uri) as to_c:
-            await to_b.conference(to_c)  # B e C se ouvem
+            await to_b.conference(to_c)  # B and C hear each other
             await asyncio.sleep(1)
             await to_b.conference(to_c, enabled=False)
-            await to_b.attended_transfer(to_c)  # REFER com Replaces
+            await to_b.attended_transfer(to_c)  # REFER with Replaces
             status = await to_b.wait_for(Call.TransferStatus, lambda e: e.final)
-            print("Assistida:", status.code, status.reason, status.success)
-            await to_c.ended(5)  # a perna até C foi substituída
-        # ao sair, desligamos a perna até B, como manda o REFER
+            print("Attended:", status.code, status.reason, status.success)
+            await to_c.ended(5)  # the leg to C was replaced
+        # leaving the block hangs up the leg to B, as the REFER asks
 
-        # Transferência cega: B liga para C sozinho
+        # Blind transfer: B calls C on its own
         async with phone.call(b.uri) as call:
             await call.transfer(c.uri)
             status = await call.wait_for(Call.TransferStatus, lambda e: e.final)
-            print("Cega:", status.code, status.reason, status.success)
+            print("Blind:", status.code, status.reason, status.success)
 
 
 asyncio.run(main())

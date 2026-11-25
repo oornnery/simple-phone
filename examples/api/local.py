@@ -2,7 +2,7 @@
 
 Every example runs on its own: `phone` is account 1001, and the far end is
 another account (1002, 1003) of the same endpoint, answered in the same file.
-On a real PBX, use `AsyncPhone.from_profile("minha-conta.json")` and dial
+On a real PBX, use `AsyncPhone.from_profile("my-account.json")` and dial
 extensions instead.
 """
 

@@ -1,5 +1,5 @@
-"""Ouvir: transcrever o que o outro lado fala (Whisper), frase a frase, e
-responder com DTMF. Rode antes a URA: python 10_ivr_server.py
+"""Listening: transcribe what the far end says (Whisper), sentence by
+sentence, and answer with DTMF. Start the IVR first: python 10_ivr_server.py
 
     pip install 'simple-phone[stt]'
 """
@@ -15,15 +15,15 @@ IVR = "sip:1002@127.0.0.1:5072"
 
 
 async def main():
-    stt = WhisperSTT("base", language="pt")  # baixa o modelo na primeira vez
+    stt = WhisperSTT("base", language="en")  # downloads the model the first time
     await stt.load()
     async with AsyncPhone(local.settings(), stt=stt) as phone:
         async with phone.call(IVR) as call:
-            print("URA:", await call.listen(timeout=20))
-            await call.dtmf("9")  # falar com um atendente
-            print("URA:", await call.listen(timeout=15))
-            await call.ended(timeout=10)  # a URA desliga
-        print("Transcrição:", call.transcript)
+            print("IVR:", await call.listen(timeout=20))
+            await call.dtmf("9")  # talk to an agent
+            print("IVR:", await call.listen(timeout=15))
+            await call.ended(timeout=10)  # the IVR hangs up
+        print("Transcript:", call.transcript)
 
 
 asyncio.run(main())

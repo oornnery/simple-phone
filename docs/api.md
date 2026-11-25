@@ -127,7 +127,7 @@ event = await call.wait_for(Call.Sip, lambda e: e.message.code == 183, timeout=1
 | `Call.Amd` | `amd.result`, `amd.reason` |
 | `Call.MediaChanged` | `status`, `held` |
 | `Call.Transaction` | `method`, `code`, `reason` of an in-dialog request |
-| `Call.TransferStatus`, `Call.TransferRequest` | `code`, `final`, `success`; `target`, `accepted` |
+| `Call.TransferStatus`, `Call.TransferRequest` | `code`, `reason`, `final`, `success`; `target`, `accepted` |
 | `Call.Redirected`, `Call.Reinvite` | `target`, `followed`; `has_offer` |
 | `Call.Message`, `Call.Text` | `body`; `text` |
 
