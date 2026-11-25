@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2
+
+- `PiperTTS` and `WhisperSTT` default to English: the voice `en_US-lessac-medium` and `language="en"`. For Portuguese, pass `PiperTTS("pt_BR-faber-medium")` and `WhisperSTT("base", language="pt")`.
+- The examples are in English, comments and output included.
+
 ## 0.1.1
 
 - The most complex functions are split into smaller ones. complexipy passes its default limit of 15. Behavior is the same.
