@@ -43,6 +43,24 @@ class ArgumentsTest(unittest.TestCase):
         self.assertEqual(settings.uri("1002@host:5094"), "sip:1002@host:5094")
         self.assertEqual(settings.uri("sips:1002@host"), "sips:1002@host")
 
+    def test_options_and_message_need_only_the_target(self):
+        opt = cli.parse_args(["options", "proxy.example.com"])
+        settings, _ = cli.settings_from(opt)
+        self.assertEqual(
+            (settings.server, settings.user), ("proxy.example.com", "simple-phone")
+        )
+        self.assertIs(settings.register, False)
+        self.assertEqual(
+            cli.request_target("proxy.example.com"), "sip:proxy.example.com"
+        )
+        self.assertEqual(cli.request_target("1002"), "1002")
+        opt = cli.parse_args(["message", "sip:1002@pbx.example.com:5080", "hello"])
+        settings, _ = cli.settings_from(opt)
+        self.assertEqual(settings.server, "pbx.example.com")
+        self.assertIs(settings.text, False)  # the body is not Settings.text
+        with self.assertRaises(ValueError):  # an extension says nothing of the server
+            cli.settings_from(cli.parse_args(["options", "1002"]))
+
     def test_bad_input(self):
         with self.assertRaises(ValueError):
             cli.settings_from(cli.parse_args(["call", "1", "--server", "x"]))
@@ -93,7 +111,7 @@ class CommandsTest(unittest.TestCase):
         for command in (["options"], ["message"]):
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
-                args = [*command, "sip:1002@127.0.0.1:5094", *LOCAL, "--user", "1001"]
+                args = [*command, "127.0.0.1:5094"]  # like curl: the target alone
                 if command == ["message"]:
                     args.append("hello")
                 status = cli.main([*args, "--header", "X-Test: 1"])

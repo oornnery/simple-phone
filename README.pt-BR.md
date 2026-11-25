@@ -36,7 +36,7 @@ A senha vem de `$SIP_PASSWORD`, ou o comando pergunta.
 export SIP_PASSWORD=...
 simple-phone call 1002 --server pbx.example.com --user 1001 --media echo   # disca, relata, sai
 simple-phone answer --server pbx.example.com --user 1002 --media echo      # espera uma chamada
-simple-phone options 1002 --server pbx.example.com --user 1001             # OPTIONS, mostra a resposta
+simple-phone options pbx.example.com                                       # OPTIONS, mostra a resposta
 simple-phone message 1002 oi --server pbx.example.com --user 1001          # MESSAGE
 simple-phone devices                                                       # dispositivos de áudio
 ```

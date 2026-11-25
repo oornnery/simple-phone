@@ -143,7 +143,8 @@ def parse_args(argv=None):
             metavar="'Name: value'",
             help="extra header, repeatable",
         )
-    message.add_argument("text", help="the message body (text/plain)")
+    # not "text": that is a Settings field (real-time text)
+    message.add_argument("body", metavar="text", help="the message body (text/plain)")
     answer = commands.add_parser(
         "answer", parents=[common], help="wait for one call and answer it"
     )
@@ -195,10 +196,29 @@ def settings_from(opt):
             values[name] = json.loads(text)  # numbers, true/false, lists
         except json.JSONDecodeError:
             values[name] = text
+    if opt.command in ("options", "message"):
+        values = request_defaults(opt.dest) | values  # flags and profile win
     values.setdefault("log_level", 4 if opt.verbose else 1)
     if not values.get("server") or not values.get("user"):
         raise ValueError("--server and --user (or --profile) are required")
     return Settings(**values), password_env
+
+
+def request_defaults(dest):
+    """options and message need only the target, like curl: the From user
+    is simple-phone, nothing registers, and the target's host is the server."""
+    target = dest.split(":", 1)[1] if dest.startswith(("sip:", "sips:")) else dest
+    host = target.rpartition("@")[2].split(";")[0].rsplit(":", 1)[0]
+    defaults = {"user": "simple-phone", "register": False}
+    if "." in host or host == "localhost":
+        defaults["server"] = host
+    return defaults
+
+
+def request_target(dest):
+    """'pbx.example.com' or 'host:5060' is a host, not an extension."""
+    plain = not dest.startswith(("sip:", "sips:")) and "@" not in dest
+    return f"sip:{dest}" if plain and ("." in dest or ":" in dest) else dest
 
 
 def password_for(settings, variable):
@@ -295,7 +315,7 @@ async def talk(call, opt):
 
 async def request(opt, settings, password):
     """options / message: send one request outside a call and print the
-    response like an HTTP client does. Exit 0 on a 2xx."""
+    response, like curl. Exit 0 on any response, 1 on none."""
     phone = AsyncPhone(
         settings, password=password, timeouts=Timeouts(register=opt.timeout)
     )
@@ -303,12 +323,13 @@ async def request(opt, settings, password):
     received = []
     phone.on(AsyncPhone.Sip)(lambda e: received.append(e.message))
     method, extra = opt.command.upper(), {"headers": headers_from(opt)}
+    target = request_target(opt.dest)
     async with phone:
         if method == "OPTIONS":
-            response = await phone.options(opt.dest, timeout=opt.timeout, **extra)
+            response = await phone.options(target, timeout=opt.timeout, **extra)
         else:
             response = await phone.message(
-                opt.dest, opt.text, timeout=opt.timeout, **extra
+                target, opt.body, timeout=opt.timeout, **extra
             )
         await asyncio.sleep(0)  # the SIP log of the response
     full = next(
@@ -329,7 +350,7 @@ async def request(opt, settings, password):
         console.print(
             "[dim]PJSUA sends it without credentials, so a PBX that challenges it answers 401.[/]"
         )
-    return 0 if response.code < 300 else 1
+    return 0  # like curl: an answer, whatever its code, is a success
 
 
 def status_style(code, text):

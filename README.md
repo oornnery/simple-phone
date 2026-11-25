@@ -36,7 +36,7 @@ The password comes from `$SIP_PASSWORD`, or the command asks for it.
 export SIP_PASSWORD=...
 simple-phone call 1002 --server pbx.example.com --user 1001 --media echo   # dial, report, exit
 simple-phone answer --server pbx.example.com --user 1002 --media echo      # wait for one call
-simple-phone options 1002 --server pbx.example.com --user 1001             # OPTIONS, prints the response
+simple-phone options pbx.example.com                                       # OPTIONS, prints the response
 simple-phone message 1002 hi --server pbx.example.com --user 1001          # MESSAGE
 simple-phone devices                                                       # audio devices
 ```

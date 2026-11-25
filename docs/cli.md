@@ -6,7 +6,7 @@
 simple-phone call 1002 --server pbx.example.com --user 1001 --media echo --duration 30
 simple-phone answer --server pbx.example.com --user 1002 --media echo --timeout 600
 simple-phone doctor --server pbx.example.com --user 1001
-simple-phone options 1002 --server pbx.example.com --user 1001
+simple-phone options pbx.example.com
 simple-phone message 1002 'hello' --server pbx.example.com --user 1001
 simple-phone devices
 ```
@@ -14,7 +14,7 @@ simple-phone devices
 - `call` registers, dials, stays connected for `--duration` seconds, hangs up and prints a summary. The call ends early if the far end hangs up or you press Ctrl+C.
 - `answer` waits up to `--timeout` seconds for a call, then does the same.
 - `doctor` checks versions, codecs, audio devices, NAT (when `stun_servers` is set), REGISTER and an OPTIONS ping. Without `--server` it checks only this machine.
-- `options` and `message` send one request outside a call and print the response, like an HTTP client: status line, headers and body. They exit with 0 on a 2xx. PJSUA sends them without credentials, so a PBX that challenges them answers 401.
+- `options` and `message` send one request outside a call and print the response, like curl: status line, headers and body. The target alone is enough: `simple-phone options pbx.example.com`. Without `--server` the target's host is the server, the `From` user is `simple-phone`, and nothing registers. They exit with 0 on any response and 1 when none arrives. PJSUA sends them without credentials, so a PBX that challenges them answers 401.
 - `devices` lists audio devices.
 
 A target is a number (`1002`, which becomes `sip:1002@<domain>`), `user@host`, or a `sip:` URI.
