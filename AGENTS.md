@@ -4,7 +4,7 @@ Notes for coding agents (and people) working in this repository.
 
 ## What this is
 
-`simple-phone`: a SIP test phone. The Python package bundles PJSUA2 (PJSIP 2.17), compiled into the wheel, and adds an async API (`AsyncPhone`, `Call`, typed events) and a command (`simple-phone`). It targets Linux x86_64 and Python 3.14 only. The license is GPL-2.0-or-later, because PJSIP is linked in.
+`simple-phone`: a SIP test phone. The Python package bundles PJSUA2 (PJSIP 2.17), compiled into the wheel, and adds an async API (`AsyncPhone`, `Call`, typed events) and a command (`simple-phone`). It targets Linux x86_64 and Python 3.14 and 3.15 only. The license is GPL-2.0-or-later, because PJSIP is linked in.
 
 Read [docs/architecture.md](docs/architecture.md) before changing anything under `src/simple_phone/core/`. The public API is described in [docs/api.md](docs/api.md) and the command in [docs/cli.md](docs/cli.md); update them, and their `.pt-BR.md` copies, with the code.
 

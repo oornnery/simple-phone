@@ -6,7 +6,7 @@ A SIP phone for testing calls, as a command and as a Python library. PJSIP 2.17 
 
 ## Install
 
-Linux x86_64 and Python 3.14. The only system library it needs is ALSA, which every Linux desktop has.
+Linux x86_64, Python 3.14 or 3.15. The only system library it needs is ALSA, which every Linux desktop has.
 
 ```bash
 pip install simple-phone                  # or: uv add simple-phone
@@ -14,11 +14,11 @@ sudo apt install libasound2t64            # only if ALSA is missing (libasound2 
 pip install 'simple-phone[stt,tts]'       # optional: Whisper and Piper for say() and listen()
 ```
 
-Or run it without installing, with [uv](https://docs.astral.sh/uv/). `--python 3.14` is needed while uv defaults to a newer Python:
+Or run it without installing, with [uv](https://docs.astral.sh/uv/):
 
 ```bash
-uvx --python 3.14 simple-phone doctor --server pbx.example.com --user 1001   # REGISTER and OPTIONS
-uvx --python 3.14 simple-phone call 1002 --server pbx.example.com --user 1001
+uvx simple-phone doctor --server pbx.example.com --user 1001   # REGISTER and OPTIONS
+uvx simple-phone call 1002 --server pbx.example.com --user 1001
 ```
 
 Check the install, and then your account:
@@ -36,6 +36,8 @@ The password comes from `$SIP_PASSWORD`, or the command asks for it.
 export SIP_PASSWORD=...
 simple-phone call 1002 --server pbx.example.com --user 1001 --media echo   # dial, report, exit
 simple-phone answer --server pbx.example.com --user 1002 --media echo      # wait for one call
+simple-phone options 1002 --server pbx.example.com --user 1001             # OPTIONS, prints the response
+simple-phone message 1002 hi --server pbx.example.com --user 1001          # MESSAGE
 simple-phone devices                                                       # audio devices
 ```
 

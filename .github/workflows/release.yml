@@ -23,7 +23,7 @@ jobs:
           python-version: "3.14"
       - name: Tag matches the project version
         run: python scripts/check_package.py --metadata --tag "$GITHUB_REF_NAME"
-      - uses: pypa/cibuildwheel@v3.2
+      - uses: pypa/cibuildwheel@v4.3.5
       - name: Wheel contents
         run: python scripts/check_package.py wheelhouse/*.whl
       - uses: actions/upload-artifact@v4
