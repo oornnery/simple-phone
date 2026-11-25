@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1
+
+- The most complex functions are split into smaller ones. complexipy passes its default limit of 15. Behavior is the same.
+- `Settings` errors name the field and its allowed values or range, e.g. `port must be between 1 and 65535`.
+- The README starts with install and usage. The release steps include `uv lock` and this changelog.
+
 ## 0.1.0
 
 The API has one way to do each thing. Code written for 0.0.1 needs these changes:
