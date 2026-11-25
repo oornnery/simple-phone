@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.3
+
+- `phone.account(user="1002")` adds an account from keyword fields: it keeps this phone's settings except the ones passed, and takes RTP ports 200 above the last account. A `Settings` or a profile path still works.
+- A `pathlib.Path` works as `wav` and `record` in `Settings` and `call.answer()`.
+- The examples stand alone: no `local.py` helper and no `Settings`.
+
 ## 0.1.2
 
 - `PiperTTS` and `WhisperSTT` default to English: the voice `en_US-lessac-medium` and `language="en"`. For Portuguese, pass `PiperTTS("pt_BR-faber-medium")` and `WhisperSTT("base", language="pt")`.
