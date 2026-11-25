@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.8
+
+- `call` and `answer` work without an account too: `simple-phone call 1002@192.0.2.10` dials the host directly, and `simple-phone answer` waits on this machine. With neither `--server` nor `--profile`, the `From` user is `simple-phone` and nothing registers.
+- A typo names the typo: `--verion` is an unrecognized argument, and a misspelt command gets a suggestion. The help lists `options` and `message`.
+
 ## 0.1.7
 
 - `simple-phone options pbx.example.com` works with the target alone, like curl. Without `--server` the target's host is the server, the `From` user is `simple-phone` and nothing registers. A bare host is sent to as `sip:host`.

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "simple-phone"
-version = "0.1.7"
+version = "0.1.8"
 description = "SIP test phone in Python (async API) with PJSUA2 bundled"
 readme = "README.md"
 requires-python = ">=3.14"
