@@ -378,5 +378,31 @@ class SyncPhoneTest(unittest.TestCase):
             self.assertTrue(call.report.answered)
 
 
+class CompactHeadersTest(unittest.IsolatedAsyncioTestCase):
+    async def invite_head(self, **settings):
+        """The INVITE the phone sends, as text, with these settings."""
+        async with AsyncPhone(replace(local("1001", "a", 46000), **settings)) as phone:
+            other = await phone.account(user="1002")
+
+            @other.on(AsyncPhone.Incoming)
+            async def answer(event):
+                await event.call.answer()
+
+            async with phone.call(other.uri) as call:
+                pass
+        invite = next(
+            m for m in call.trace if m.direction == "TX" and m.method == "INVITE"
+        )
+        self.assertEqual(call.state, "DISCONNECTED")
+        return invite.raw.replace("\r\n", "\n")
+
+    async def test_compact_form_is_sent_only_when_asked(self):
+        compact = await self.invite_head(compact_headers=True)
+        self.assertIn("\ni: ", compact)
+        self.assertNotIn("\nCall-ID:", compact)
+        full = await self.invite_head()  # the setting does not leak to the next phone
+        self.assertIn("\nCall-ID:", full)
+
+
 if __name__ == "__main__":
     unittest.main()

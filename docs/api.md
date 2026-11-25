@@ -41,6 +41,7 @@ The most used settings:
 | `prack`, `session_timer` | 100rel and RFC 4028: `off`, `optional`, ... | `off` |
 | `text`, `mwi` | Offer real-time text; subscribe to voicemail status | `False` |
 | `follow_redirects`, `accept_transfers` | Follow a 3xx; accept a REFER | `False`, `True` |
+| `compact_headers` | Send header names in compact form (`i:`, `f:`, `v:`...). Applies to every account of the process | `False` |
 
 `await phone.account(user="1002", password=...)` adds another account on the same endpoint. It keeps this phone's settings except the ones you pass, shares the SIP port, and takes RTP ports 200 above the last account. It also takes a JSON profile path or a `Settings`. With `register=False`, two accounts can call each other at `phone.uri`, with no server.
 

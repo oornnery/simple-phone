@@ -21,6 +21,7 @@ ENDPOINT_FIELDS = {
     "max_calls",
     "log_level",
     "stats_interval",
+    "compact_headers",
 }
 
 

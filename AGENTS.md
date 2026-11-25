@@ -19,6 +19,7 @@ Read [docs/architecture.md](docs/architecture.md) before changing anything under
 | `examples/api/` | Runnable examples, each on one machine without a PBX |
 | `scripts/` | Setup, checks, tests, build, Asterisk |
 | `packaging/config_site.h` | Native limits compiled into PJSIP |
+| `packaging/pjsua2_extra.i` | Our additions to the SWIG binding (e.g. `setCompactForm`), appended to `pjsua2.i` by `build_pjsip.sh` |
 | `packages/` | Ignored by git. Separate packages built on the core |
 
 ## Commands

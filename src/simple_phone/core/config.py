@@ -70,6 +70,7 @@ class Config:
     tls_verify: bool = True
     srtp: str = "disabled"
     max_calls: int = 1
+    compact_headers: bool = False  # send i:, f:, v:... (RFC 3261 compact form)
 
     def __post_init__(self):
         self.domain = self.domain or self.server

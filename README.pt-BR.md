@@ -49,6 +49,8 @@ simple-phone call 600 --server pbx.example.com --user 1001 --dtmf '1234#' --dtmf
 simple-phone call 1002 --server pbx.example.com --user 1001 --media wav --wav aviso.wav --loop --record volta.wav
 # Conversa: microfone e alto-falante
 simple-phone call 1002 --server pbx.example.com --user 1001 --media mic --speaker
+# Envia os nomes de header na forma compacta (i:, f:, v:...)
+simple-phone call 1002 --server pbx.example.com --user 1001 --compact-headers --trace
 # Mostra cada mensagem SIP e os contadores RTP enquanto acontecem
 simple-phone call 1002 --server pbx.example.com --user 1001 --trace --stats
 # Sem conta: liga direto para um host, faz ping, manda uma mensagem

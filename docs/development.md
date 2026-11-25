@@ -48,7 +48,9 @@ Asterisk runs on the host network, so SIP and RTP need no port mapping. `ASTERIS
 | `PJSIP_TLS` | `0` | `1` builds with OpenSSL |
 | `PJSIP_JOBS` | `nproc` | Parallel make jobs |
 
-Use the same `PJSIP_TLS` for `dev.sh` and `build.sh`. `--check` compares version, limits and TLS, and never reuses a prefix that does not match.
+Use the same `PJSIP_TLS` for `dev.sh` and `build.sh`. `--check` compares version, limits, TLS and the wrapper, and never reuses a prefix that does not match.
+
+The binding is PJSIP's `pjsua2.i` plus `packaging/pjsua2_extra.i`, which adds what PJSUA2 does not expose (today `setCompactForm`). After changing that file, run `bash scripts/build_pjsip.sh` and `bash scripts/dev.sh`.
 
 Only wheels are distributed. A source build needs `scripts/build_pjsip.sh` first, and a plain sdist cannot run it. Always build with `--wheel`; `build.sh` already does.
 

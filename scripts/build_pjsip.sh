@@ -39,6 +39,9 @@ check_outputs() {
         echo "Native TLS configuration differs from PJSIP_TLS=$TLS" >&2; return 1;
     }
     compgen -G "$PREFIX/lib/libpjsua2*.a" >/dev/null || return 1
+    grep -q "def setCompactForm" "$OUT/pjsua2.py" || {
+        echo "Native wrapper predates packaging/pjsua2_extra.i" >&2; return 1;
+    }
 }
 
 if [[ "${1:-}" == --check ]]; then
@@ -89,10 +92,13 @@ cd "$SRC"
 make dep
 make -j"$JOBS"
 make install
+# pjsua2.i plus our additions; next to it, so its %include lines resolve.
+INTERFACE="$SRC/pjsip-apps/src/swig/simple_phone_pjsua2.i"
+cat "$SRC/pjsip-apps/src/swig/pjsua2.i" "$ROOT/packaging/pjsua2_extra.i" > "$INTERFACE"
 swig -c++ -python -threads -doxygen -w312 \
     -I"$SRC/pjlib/include" -I"$SRC/pjlib-util/include" \
     -I"$SRC/pjmedia/include" -I"$SRC/pjsip/include" -I"$SRC/pjnath/include" \
-    -outdir "$OUT" -o "$OUT/pjsua2_wrap.cpp" "$SRC/pjsip-apps/src/swig/pjsua2.i"
+    -outdir "$OUT" -o "$OUT/pjsua2_wrap.cpp" "$INTERFACE"
 build_id="$(sha256sum "$PREFIX"/lib/*.a | sha256sum | awk '{print $1}')"
 printf 'PJSIP_VERSION = "%s"\nPJSIP_TLS = %s\nPJSIP_BUILD_ID = "%s"\n' \
     "$VERSION" "$TLS" "$build_id" > "$OUT/_build.py"

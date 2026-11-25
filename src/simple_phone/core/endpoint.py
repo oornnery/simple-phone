@@ -195,6 +195,8 @@ class Endpoint:
             with quiet_stdout():
                 self.lib.libCreate()
             self.created = True
+            # process-wide in PJSIP: set on every start, so none leaks over
+            pj.setCompactForm(opt.compact_headers)
             config = pj.EpConfig()
             config.uaConfig.threadCnt = 0
             config.uaConfig.mainThreadOnly = True

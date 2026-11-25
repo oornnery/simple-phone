@@ -65,6 +65,7 @@ simple-phone call 1002 --server pbx --user 1001 --media wav --wav reference.wav 
 | `--local-port`, `--rtp-port` | Local SIP port; first of 100 RTP ports | 5070, 40000 |
 | `--profile FILE` | JSON with any `Settings` fields, plus `password_env` | |
 | `--password-env` | Variable that holds the password | `SIP_PASSWORD` |
+| `--compact-headers` | Send header names in compact form (`i:`, `f:`, `v:`...) | off |
 | `--set NAME=VALUE` | Any other `Settings` field, e.g. `--set srtp=mandatory` | |
 | `--media` | `silent`, `echo`, `wav`, `mic`, `tone` or `noise` | silent |
 | `--tone HZ` | Frequency of `--media tone` | 1000 |

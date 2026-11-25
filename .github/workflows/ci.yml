@@ -45,7 +45,7 @@ jobs:
             src/simple_phone/_native/pjsua2.py
             src/simple_phone/_native/pjsua2_wrap.cpp
             src/simple_phone/_native/pjsua2_wrap.h
-          key: pjsip-${{ runner.os }}-${{ hashFiles('scripts/build_pjsip.sh', 'packaging/config_site.h') }}
+          key: pjsip-${{ runner.os }}-${{ hashFiles('scripts/build_pjsip.sh', 'packaging/config_site.h', 'packaging/pjsua2_extra.i') }}
       - name: Development environment
         run: bash scripts/dev.sh --python 3.14
       - name: Ruff, ty, metadata and unit tests

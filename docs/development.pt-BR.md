@@ -48,7 +48,9 @@ O Asterisk roda na rede do host, então SIP e RTP não precisam de mapeamento de
 | `PJSIP_TLS` | `0` | `1` compila com OpenSSL |
 | `PJSIP_JOBS` | `nproc` | Jobs paralelos do make |
 
-Use o mesmo `PJSIP_TLS` no `dev.sh` e no `build.sh`. O `--check` compara versão, limites e TLS, e nunca reaproveita um prefixo que não bate.
+Use o mesmo `PJSIP_TLS` no `dev.sh` e no `build.sh`. O `--check` compara versão, limites, TLS e o wrapper, e nunca reaproveita um prefixo que não bate.
+
+O binding é o `pjsua2.i` do PJSIP mais o `packaging/pjsua2_extra.i`, que acrescenta o que o PJSUA2 não expõe (hoje, `setCompactForm`). Depois de mudar esse arquivo, rode `bash scripts/build_pjsip.sh` e `bash scripts/dev.sh`.
 
 Só wheels são distribuídos. Um build a partir do fonte precisa rodar `scripts/build_pjsip.sh` antes, e um sdist comum não consegue. Gere sempre com `--wheel`; o `build.sh` já faz isso.
 

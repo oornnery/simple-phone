@@ -88,6 +88,12 @@ def parse_args(argv=None):
     add("--rtp-port", type=int, help="first of 100 RTP ports (default 40000)")
     add("--password-env", help="variable with the password (default SIP_PASSWORD)")
     add(
+        "--compact-headers",
+        action="store_const",
+        const=True,
+        help="send header names in compact form (i:, f:, t:, v:...)",
+    )
+    add(
         "--set",
         dest="extra",
         action="append",

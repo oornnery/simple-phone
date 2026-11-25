@@ -41,6 +41,7 @@ As configurações mais usadas:
 | `prack`, `session_timer` | 100rel e RFC 4028: `off`, `optional`, ... | `off` |
 | `text`, `mwi` | Oferece texto em tempo real; assina o estado da caixa postal | `False` |
 | `follow_redirects`, `accept_transfers` | Segue um 3xx; aceita um REFER | `False`, `True` |
+| `compact_headers` | Envia os nomes de header na forma compacta (`i:`, `f:`, `v:`...). Vale para todas as contas do processo | `False` |
 
 `await phone.account(user="1002", password=...)` adiciona outra conta no mesmo endpoint. Ela herda as configurações deste telefone, menos as que você passar, divide a porta SIP e usa portas RTP 200 acima da última conta. Também aceita o caminho de um perfil JSON ou um `Settings`. Com `register=False`, duas contas ligam uma para a outra em `phone.uri`, sem servidor.
 
