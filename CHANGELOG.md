@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.7
+
+- `simple-phone options pbx.example.com` works with the target alone, like curl. Without `--server` the target's host is the server, the `From` user is `simple-phone` and nothing registers. A bare host is sent to as `sip:host`.
+- `options` and `message` exit with 0 on any response (a PBX answers 401 to requests without credentials) and 1 when none arrives.
+- Fixed: the text of `message` went into `Settings.text` (real-time text), whose name it shared.
+
 ## 0.1.6
 
 - A failure while PJSIP starts (port in use, unknown codec or audio device) prints `error: ...` instead of a traceback. In the API it is a `PhoneError`.
