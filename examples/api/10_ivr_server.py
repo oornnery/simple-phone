@@ -11,7 +11,7 @@ softphone). say(interrupt=True) stops talking as soon as the caller talks
 import asyncio
 import contextlib
 
-from simple_phone import AsyncPhone, Settings
+from simple_phone import AsyncPhone
 from simple_phone.media import PiperTTS
 
 MENU = "Hello. For a copy of your bill, press 1. To talk to an agent, press 9."
@@ -43,12 +43,17 @@ async def ivr(event):
 
 
 async def main():
-    settings = Settings(
-        server="127.0.0.1", user="1002", register=False, local_port=5072, rtp_port=42000
-    )
-    tts = PiperTTS("en_US-lessac-medium")
+    tts = PiperTTS()  # en_US-lessac-medium, downloaded the first time
     await tts.load()
-    async with AsyncPhone(settings, tts=tts) as phone:
+    phone = AsyncPhone(
+        server="127.0.0.1",
+        user="1002",
+        register=False,
+        local_port=5072,  # 11_listen.py takes 5070
+        rtp_port=42000,
+        tts=tts,
+    )
+    async with phone:
         phone.on(AsyncPhone.Incoming)(ivr)
         print("IVR at", phone.uri, "(Ctrl+C quits)")
         await phone.serve()

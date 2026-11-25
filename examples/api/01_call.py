@@ -2,14 +2,12 @@
 
 import asyncio
 
-import local
-
 from simple_phone import AsyncPhone, CallFailed
 
 
 async def main():
-    async with AsyncPhone(local.settings()) as phone:
-        far = await local.far_end(phone)
+    async with AsyncPhone(server="127.0.0.1", user="1001", register=False) as phone:
+        far = await phone.account(user="1002")  # the far end: a second account here
         busy = False
 
         @far.on(AsyncPhone.Incoming)

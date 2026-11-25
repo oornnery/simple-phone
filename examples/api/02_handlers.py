@@ -9,14 +9,14 @@ On a real extension, end with `await extension.serve()` (runs until Ctrl+C).
 
 import asyncio
 
-import local
-
 from simple_phone import AsyncPhone, Call
 
 
 async def main():
-    async with AsyncPhone(local.settings("1002", 40200)) as extension:
-        phone = await extension.account(local.settings("1001", 40000))
+    async with AsyncPhone(server="127.0.0.1", user="1002", register=False) as extension:
+        phone = await extension.account(
+            user="1001"
+        )  # the caller: a second account here
 
         @extension.on(AsyncPhone.Incoming)
         async def incoming(event):

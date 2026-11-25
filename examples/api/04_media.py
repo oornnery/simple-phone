@@ -8,20 +8,42 @@ sound card, use send("mic") and speaker() to talk for real.
 
 import array
 import asyncio
-
-import local
+import math
+import tempfile
+import wave
+from pathlib import Path
 
 from simple_phone import AsyncPhone, Call
 from simple_phone.media import AudioFrame, rms
 
+FOLDER = Path(tempfile.gettempdir()) / "simple-phone-examples"
+
+
+def tone(hz, seconds, rate=8000):
+    """A sine wave as 16-bit mono PCM."""
+    count = int(rate * seconds)
+    wave_ = (int(8000 * math.sin(2 * math.pi * hz * i / rate)) for i in range(count))
+    return array.array("h", wave_).tobytes()
+
+
+def save_wav(name, pcm, rate=8000):
+    FOLDER.mkdir(exist_ok=True)
+    path = FOLDER / name
+    with wave.open(str(path), "wb") as out:
+        out.setnchannels(1)
+        out.setsampwidth(2)
+        out.setframerate(rate)
+        out.writeframes(pcm)
+    return path
+
 
 async def main():
-    beep = local.write_wav("beep.wav", local.tone(880, 0.3))
-    music = local.write_wav("tone.wav", local.tone(440, 1.0))
-    received = local.FOLDER / "received.wav"
+    beep = save_wav("beep.wav", tone(880, 0.3))
+    music = save_wav("tone.wav", tone(440, 1.0))
+    received = FOLDER / "received.wav"
 
-    async with AsyncPhone(local.settings()) as phone:
-        far = await local.far_end(phone)
+    async with AsyncPhone(server="127.0.0.1", user="1001", register=False) as phone:
+        far = await phone.account(user="1002")  # the far end: a second account here
 
         @far.on(AsyncPhone.Incoming)
         async def answer(event):
@@ -54,8 +76,7 @@ async def main():
             await call.send("silent")
             await call.play(beep)  # plays on top and returns when done
             stream = await call.stream()  # a source fed from Python
-            pcm = array.array("h", local.tone(660, 0.3)).tobytes()
-            stream.write(AudioFrame(pcm))
+            stream.write(AudioFrame(tone(660, 0.3)))
             await stream.drain()
 
             await call.gain(microphone=0.5, speaker=1.0)

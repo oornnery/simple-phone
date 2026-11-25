@@ -5,12 +5,10 @@ Handlers can still be `async def`: they run on Phone's internal loop.
 
 import time
 
-import local
-
 from simple_phone import Call, Phone
 
-with Phone(local.settings()) as phone:
-    far = phone.account(local.settings("1002", 40200))
+with Phone(server="127.0.0.1", user="1001", register=False) as phone:
+    far = phone.account(user="1002")  # the far end: a second account here
 
     @far.on(Phone.Incoming)
     async def answer(event):

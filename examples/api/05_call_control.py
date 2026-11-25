@@ -3,15 +3,13 @@ accounts: us (1001), 1002 and 1003, both answering with echo."""
 
 import asyncio
 
-import local
-
 from simple_phone import AsyncPhone, Call
 
 
 async def main():
-    async with AsyncPhone(local.settings()) as phone:
-        b = await local.far_end(phone, "1002")
-        c = await local.far_end(phone, "1003")
+    async with AsyncPhone(server="127.0.0.1", user="1001", register=False) as phone:
+        b = await phone.account(user="1002")  # two more accounts here
+        c = await phone.account(user="1003")
         for far in (b, c):
 
             @far.on(AsyncPhone.Incoming)

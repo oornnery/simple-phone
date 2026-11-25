@@ -8,16 +8,15 @@ Nothing here answers a dialog SUBSCRIBE, so only presence shows up.
 """
 
 import asyncio
-from dataclasses import replace
-
-import local
 
 from simple_phone import AsyncPhone, CallFailed
 
 
 async def main():
-    async with AsyncPhone(replace(local.settings(), text=True)) as phone:
-        far = await local.far_end(phone)
+    async with AsyncPhone(
+        server="127.0.0.1", user="1001", register=False, text=True
+    ) as phone:
+        far = await phone.account(user="1002")  # the far end: a second account here
 
         # Presence: far watches phone
         @far.on(AsyncPhone.Presence)
@@ -34,8 +33,8 @@ async def main():
         await asyncio.sleep(0.5)
         await far.unsubscribe(phone.uri)
 
-        # RTT: both sides with Settings(text=True); text goes letter by letter
-        writer = await phone.account(replace(local.settings("1003", 40600), text=True))
+        # RTT: both sides need text=True (accounts inherit it); text goes letter by letter
+        writer = await phone.account(user="1003")
 
         answered = []
 

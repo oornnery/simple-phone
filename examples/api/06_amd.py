@@ -1,12 +1,16 @@
 """Who answered: a person, an IVR, voicemail or an announcement (AMD). For an
 IVR, pick an option and record the reply. The far end plays a long greeting."""
 
+import array
 import asyncio
-
-import local
+import random
+import tempfile
+import wave
+from pathlib import Path
 
 from simple_phone import AsyncPhone
 
+FOLDER = Path(tempfile.gettempdir()) / "simple-phone-examples"
 MEANING = {
     "human": "a person (short hello, then waited)",
     "machine": "an IVR or a recorded greeting",
@@ -17,12 +21,26 @@ MEANING = {
 }
 
 
-async def main():
-    greeting = local.write_wav("greeting.wav", local.speech_like(6))
-    answer_file = local.FOLDER / "option-1.wav"
+def greeting_wav(seconds=6, rate=8000):
+    """Noise at speech level: what the AMD hears as someone talking."""
+    FOLDER.mkdir(exist_ok=True)
+    path = FOLDER / "greeting.wav"
+    rng = random.Random(1)
+    samples = array.array("h", (int(rng.gauss(0, 3000)) for _ in range(rate * seconds)))
+    with wave.open(str(path), "wb") as out:
+        out.setnchannels(1)
+        out.setsampwidth(2)
+        out.setframerate(rate)
+        out.writeframes(samples.tobytes())
+    return path
 
-    async with AsyncPhone(local.settings()) as phone:
-        far = await local.far_end(phone)
+
+async def main():
+    greeting = greeting_wav()
+    answer_file = FOLDER / "option-1.wav"
+
+    async with AsyncPhone(server="127.0.0.1", user="1001", register=False) as phone:
+        far = await phone.account(user="1002")  # the far end: a second account here
 
         @far.on(AsyncPhone.Incoming)
         async def ivr(event):

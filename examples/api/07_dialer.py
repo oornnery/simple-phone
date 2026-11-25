@@ -6,12 +6,30 @@ same time, and new calls per second. dial() waits for a slot up to
 Timeouts.pool.
 """
 
+import array
 import asyncio
+import random
+import tempfile
+import wave
 from itertools import count
-
-import local
+from pathlib import Path
 
 from simple_phone import AsyncPhone, CallFailed, Limits, PoolTimeout, Timeouts
+
+
+def greeting_wav(seconds=6, rate=8000):
+    """Noise at speech level: what the AMD hears as someone talking."""
+    folder = Path(tempfile.gettempdir()) / "simple-phone-examples"
+    folder.mkdir(exist_ok=True)
+    path = folder / "greeting.wav"
+    rng = random.Random(1)
+    samples = array.array("h", (int(rng.gauss(0, 3000)) for _ in range(rate * seconds)))
+    with wave.open(str(path), "wb") as out:
+        out.setnchannels(1)
+        out.setsampwidth(2)
+        out.setframerate(rate)
+        out.writeframes(samples.tobytes())
+    return path
 
 
 async def classify(call):
@@ -24,10 +42,12 @@ async def classify(call):
 
 
 async def main():
-    greeting = local.write_wav("greeting.wav", local.speech_like(6))
+    greeting = greeting_wav()
     limits = Limits(max_calls=2, calls_per_second=4)
-    async with AsyncPhone(local.settings(), limits=limits) as phone:
-        far = await local.far_end(phone)
+    async with AsyncPhone(
+        server="127.0.0.1", user="1001", register=False, limits=limits
+    ) as phone:
+        far = await phone.account(user="1002")  # the far end: a second account here
         calls = count(1)
 
         @far.on(AsyncPhone.Incoming)
@@ -46,8 +66,14 @@ async def main():
 
     # One slot, taken: the second call waits Timeouts.pool and gives up.
     limits, timeouts = Limits(max_calls=1), Timeouts(pool=1)
-    async with AsyncPhone(local.settings(), limits=limits, timeouts=timeouts) as phone:
-        far = await local.far_end(phone)
+    async with AsyncPhone(
+        server="127.0.0.1",
+        user="1001",
+        register=False,
+        limits=limits,
+        timeouts=timeouts,
+    ) as phone:
+        far = await phone.account(user="1002")  # the far end: a second account here
         first = await phone.dial(far.uri)
         try:
             await phone.dial(far.uri)

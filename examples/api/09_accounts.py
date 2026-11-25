@@ -3,14 +3,12 @@
     python 09_accounts.py                                  # local: accounts, audio, codecs
     SIP_PASSWORD=... python 09_accounts.py my-account.json  # registers with the PBX
 
-A profile is JSON with Settings fields and, optionally, `password_env`
-(default SIP_PASSWORD). There is one in ../accounts/pbx.json.
+A profile is JSON with the keyword arguments of AsyncPhone and, optionally,
+`password_env` (default SIP_PASSWORD). There is one in ../accounts/pbx.json.
 """
 
 import asyncio
 import sys
-
-import local
 
 from simple_phone import AsyncPhone, PhoneError
 
@@ -35,8 +33,8 @@ async def on_pbx(path):
 
 
 async def on_this_machine():
-    async with AsyncPhone(local.settings()) as phone:
-        other = await local.far_end(phone, "1002")  # another identity, same port
+    async with AsyncPhone(server="127.0.0.1", user="1001", register=False) as phone:
+        other = await phone.account(user="1002")  # another identity, same SIP port
         print("Accounts:", phone.uri, other.uri)
         print("Codecs:", [c["id"] for c in await phone.codecs()])
         print("Audio:", [d["name"] for d in await phone.devices()] or "none")

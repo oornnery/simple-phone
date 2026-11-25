@@ -1,6 +1,6 @@
 # API examples (AsyncPhone / Phone)
 
-Each example runs without a PBX. `phone` is account 1001, and the far end is another account (1002, 1003) on the same endpoint, answered in the same file ([local.py](local.py)). On a real PBX, use `AsyncPhone.from_profile("my-account.json")` and dial extensions.
+Each example runs without a PBX and stands on its own. `phone` is `AsyncPhone(server="127.0.0.1", user="1001", register=False)`, and the far end is a second account in the same process, `await phone.account(user="1002")`, answered in the same file. On a real PBX, use `AsyncPhone(server=..., user=..., password=...)` and dial extensions.
 
 ```bash
 cd examples/api
@@ -20,6 +20,6 @@ python 01_call.py
 | [09_accounts.py](09_accounts.py) | Several accounts, codecs, audio devices, `configure`, `ip_changed`; with a profile: `from_profile`, REGISTER and unREGISTER |
 | [10_ivr_server.py](10_ivr_server.py) | An IVR on the answering side: `say` (Piper, with barge-in) and `gather` (extra `tts`) |
 | [11_listen.py](11_listen.py) | `listen()` (Whisper) and `transcript` against that IVR (extra `stt`) |
-| [12_presence_text.py](12_presence_text.py) | Presence (`subscribe`, `set_presence`), `typing`, real-time text (`Settings(text=True)`, `send_text`), `Phone.Rejected` |
+| [12_presence_text.py](12_presence_text.py) | Presence (`subscribe`, `set_presence`), `typing`, real-time text (`text=True`, `send_text`), `Phone.Rejected` |
 
 Start `python 10_ivr_server.py` in another terminal before 11. Generated files (WAVs) go to `/tmp/simple-phone-examples/`.
