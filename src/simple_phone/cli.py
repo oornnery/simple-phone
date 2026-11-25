@@ -1,6 +1,7 @@
 """simple-phone: a SIP phone for testing, from the terminal.
 
     simple-phone call 1002 --server pbx.example.com --user 1001
+    simple-phone call 1002@192.0.2.10              # no account: dial a host
     simple-phone answer --profile account.json --media echo
     simple-phone options pbx.example.com
     simple-phone message 1002@pbx.example.com hello
@@ -203,26 +204,31 @@ def settings_from(opt):
             values[name] = json.loads(text)  # numbers, true/false, lists
         except json.JSONDecodeError:
             values[name] = text
-    if opt.command in ("options", "message"):
-        values = request_defaults(opt.dest) | values  # flags and profile win
+    # Like curl, without an account: options/message always, call/answer
+    # when neither --server nor --profile is given. Flags and profile win.
+    if opt.command in ("options", "message") or not (opt.server or opt.profile):
+        values = anonymous_defaults(getattr(opt, "dest", None)) | values
     values.setdefault("log_level", 4 if opt.verbose else 1)
     if not values.get("server") or not values.get("user"):
         raise ValueError("--server and --user (or --profile) are required")
     return Settings(**values), password_env
 
 
-def request_defaults(dest):
-    """options and message need only the target, like curl: the From user
-    is simple-phone, nothing registers, and the target's host is the server."""
+def anonymous_defaults(dest=None):
+    """Settings for a phone without an account: the From user is
+    simple-phone, nothing registers, and the server is the target's host
+    (for answer, which has no target: this machine)."""
+    defaults = {"user": "simple-phone", "register": False}
+    if dest is None:
+        return defaults | {"server": "127.0.0.1"}
     target = dest.split(":", 1)[1] if dest.startswith(("sip:", "sips:")) else dest
     host = target.rpartition("@")[2].split(";")[0].rsplit(":", 1)[0]
-    defaults = {"user": "simple-phone", "register": False}
     if "." in host or host == "localhost":
         defaults["server"] = host
     return defaults
 
 
-def request_target(dest):
+def target_uri(dest):
     """'pbx.example.com' or 'host:5060' is a host, not an extension."""
     plain = not dest.startswith(("sip:", "sips:")) and "@" not in dest
     return f"sip:{dest}" if plain and ("." in dest or ":" in dest) else dest
@@ -289,7 +295,8 @@ async def one_call(opt, settings, password):
                 await call.answer()
             else:
                 phone.on(AsyncPhone.Incoming)(lambda e: e.call.reject(486))
-                call = await phone.dial(opt.dest, headers=headers_from(opt))
+                target = target_uri(opt.dest)
+                call = await phone.dial(target, headers=headers_from(opt))
                 console.print(f"[bold]Calling[/] {call.destination}")
             await call.answered(timeout=timeouts.setup)
             await talk(call, opt)
@@ -330,7 +337,7 @@ async def request(opt, settings, password):
     received = []
     phone.on(AsyncPhone.Sip)(lambda e: received.append(e.message))
     method, extra = opt.command.upper(), {"headers": headers_from(opt)}
-    target = request_target(opt.dest)
+    target = target_uri(opt.dest)
     async with phone:
         if method == "OPTIONS":
             response = await phone.options(target, timeout=opt.timeout, **extra)

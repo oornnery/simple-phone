@@ -43,21 +43,23 @@ class ArgumentsTest(unittest.TestCase):
         self.assertEqual(settings.uri("1002@host:5094"), "sip:1002@host:5094")
         self.assertEqual(settings.uri("sips:1002@host"), "sips:1002@host")
 
-    def test_options_and_message_need_only_the_target(self):
+    def test_without_an_account_the_target_is_enough(self):
         opt = cli.parse_args(["options", "proxy.example.com"])
         settings, _ = cli.settings_from(opt)
         self.assertEqual(
             (settings.server, settings.user), ("proxy.example.com", "simple-phone")
         )
         self.assertIs(settings.register, False)
-        self.assertEqual(
-            cli.request_target("proxy.example.com"), "sip:proxy.example.com"
-        )
-        self.assertEqual(cli.request_target("1002"), "1002")
+        self.assertEqual(cli.target_uri("proxy.example.com"), "sip:proxy.example.com")
+        self.assertEqual(cli.target_uri("1002"), "1002")
         opt = cli.parse_args(["message", "sip:1002@pbx.example.com:5080", "hello"])
         settings, _ = cli.settings_from(opt)
         self.assertEqual(settings.server, "pbx.example.com")
         self.assertIs(settings.text, False)  # the body is not Settings.text
+        answer, _ = cli.settings_from(cli.parse_args(["answer"]))
+        self.assertEqual((answer.server, answer.user), ("127.0.0.1", "simple-phone"))
+        opt = cli.parse_args(["call", "1002", "--server", "pbx", "--user", "1001"])
+        self.assertIs(cli.settings_from(opt)[0].register, True)  # an account registers
         with self.assertRaises(ValueError):  # an extension says nothing of the server
             cli.settings_from(cli.parse_args(["options", "1002"]))
 
@@ -108,6 +110,18 @@ class CommandsTest(unittest.TestCase):
         output, _ = answer.communicate(timeout=20)
         self.assertEqual(answer.returncode, 0, output)
         self.assertIn("DTMF ← 7", output)
+
+    def test_call_and_answer_without_an_account(self):
+        answer = subprocess.Popen(
+            [sys.executable, "-m", "simple_phone.cli", "answer", "--local-port", "5099",
+             "--rtp-port", "42600", "--media", "echo", "--duration", "3", "--timeout", "15"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )  # fmt: skip
+        self.addCleanup(answer.wait)
+        self.addCleanup(answer.kill)
+        time.sleep(1.5)  # its endpoint starts
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(cli.main(["call", "127.0.0.1:5099", "--duration", "1"]), 0)
 
     def test_options_and_message_print_the_response(self):
         far = subprocess.Popen(

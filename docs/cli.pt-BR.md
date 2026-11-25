@@ -14,10 +14,20 @@ simple-phone devices
 - `call` registra, disca, fica conectado por `--duration` segundos, desliga e mostra um resumo. A chamada termina antes se o outro lado desligar ou se você apertar Ctrl+C.
 - `answer` espera até `--timeout` segundos por uma chamada e depois faz o mesmo.
 - `doctor` confere versões, codecs, dispositivos de áudio, NAT (quando há `stun_servers`), REGISTER e um OPTIONS. Sem `--server`, confere só esta máquina.
-- `options` e `message` enviam uma requisição fora de chamada e mostram a resposta, como o curl: linha de status, headers e corpo. Basta o destino: `simple-phone options pbx.example.com`. Sem `--server`, o host do destino vira o servidor, o usuário do `From` é `simple-phone` e nada é registrado. Saem com 0 em qualquer resposta e com 1 quando nenhuma chega. O PJSUA as envia sem credenciais, então um PABX que as desafia responde 401.
+- `options` e `message` enviam uma requisição fora de chamada e mostram a resposta, como o curl: linha de status, headers e corpo. Saem com 0 em qualquer resposta e com 1 quando nenhuma chega. O PJSUA as envia sem credenciais, então um PABX que as desafia responde 401.
 - `devices` lista os dispositivos de áudio.
 
-Um destino é um número (`1002`, que vira `sip:1002@<domínio>`), `usuário@host` ou uma URI `sip:`.
+Um destino é um número (`1002`, que vira `sip:1002@<domínio>`), `usuário@host`, um host (`pbx.example.com`, `host:5060`) ou uma URI `sip:`.
+
+Sem conta, basta o destino, como no curl:
+
+```bash
+simple-phone options pbx.example.com
+simple-phone call 1002@192.0.2.10        # disca direto para o host
+simple-phone answer --media echo         # espera em sip:simple-phone@127.0.0.1:5070
+```
+
+Sem `--server` e sem `--profile`, o usuário do `From` é `simple-phone`, nada é registrado e o servidor é o host do destino (no `answer`, esta máquina). `options` e `message` só registram quando o perfil ou `--set register=true` pede.
 
 A senha vem de `$SIP_PASSWORD` ou é pedida no terminal:
 
