@@ -34,11 +34,24 @@ The password comes from `$SIP_PASSWORD`, or the command asks for it.
 
 ```bash
 export SIP_PASSWORD=...
-simple-phone call 1002 --server pbx.example.com --user 1001 --media echo   # dial, report, exit
-simple-phone answer --server pbx.example.com --user 1002 --media echo      # wait for one call
-simple-phone options pbx.example.com                                       # OPTIONS, prints the response
-simple-phone message 1002 hi --server pbx.example.com --user 1001          # MESSAGE
-simple-phone devices                                                       # audio devices
+# Call, stay 30 s, hang up and print the report
+simple-phone call 1002 --server pbx.example.com --user 1001 --duration 30
+# Wait for one call and send back what it hears (echo)
+simple-phone answer --server pbx.example.com --user 1002 --media echo --timeout 600
+# Press keys 2 s after the answer (RFC 4733 DTMF)
+simple-phone call 600 --server pbx.example.com --user 1001 --dtmf '1234#' --dtmf-delay 2
+# Play a WAV (8 kHz mono) and record what comes back
+simple-phone call 1002 --server pbx.example.com --user 1001 --media wav --wav prompt.wav --record back.wav
+# Talk: microphone and speaker
+simple-phone call 1002 --server pbx.example.com --user 1001 --media mic --speaker
+# Watch every SIP message and the RTP counters as they happen
+simple-phone call 1002 --server pbx.example.com --user 1001 --trace --stats
+# No account: dial a host directly, ping it, send it a message
+simple-phone call 1002@192.0.2.10
+simple-phone options pbx.example.com
+simple-phone message 1002@pbx.example.com hello
+# Audio devices, for --set capture_device=N
+simple-phone devices
 ```
 
 `call` prints the SIP status, the time to answer, and loss, jitter, RTT and MOS for each RTP stream. `call` and `answer` exit with 0 when the call was answered with audio, so they work in scripts:

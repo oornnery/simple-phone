@@ -34,11 +34,24 @@ A senha vem de `$SIP_PASSWORD`, ou o comando pergunta.
 
 ```bash
 export SIP_PASSWORD=...
-simple-phone call 1002 --server pbx.example.com --user 1001 --media echo   # disca, relata, sai
-simple-phone answer --server pbx.example.com --user 1002 --media echo      # espera uma chamada
-simple-phone options pbx.example.com                                       # OPTIONS, mostra a resposta
-simple-phone message 1002 oi --server pbx.example.com --user 1001          # MESSAGE
-simple-phone devices                                                       # dispositivos de áudio
+# Liga, fica 30 s, desliga e mostra o relatório
+simple-phone call 1002 --server pbx.example.com --user 1001 --duration 30
+# Espera uma chamada e devolve o que ouve (eco)
+simple-phone answer --server pbx.example.com --user 1002 --media echo --timeout 600
+# Digita teclas 2 s depois do atendimento (DTMF RFC 4733)
+simple-phone call 600 --server pbx.example.com --user 1001 --dtmf '1234#' --dtmf-delay 2
+# Toca um WAV (8 kHz mono) e grava o que volta
+simple-phone call 1002 --server pbx.example.com --user 1001 --media wav --wav aviso.wav --record volta.wav
+# Conversa: microfone e alto-falante
+simple-phone call 1002 --server pbx.example.com --user 1001 --media mic --speaker
+# Mostra cada mensagem SIP e os contadores RTP enquanto acontecem
+simple-phone call 1002 --server pbx.example.com --user 1001 --trace --stats
+# Sem conta: liga direto para um host, faz ping, manda uma mensagem
+simple-phone call 1002@192.0.2.10
+simple-phone options pbx.example.com
+simple-phone message 1002@pbx.example.com olá
+# Dispositivos de áudio, para --set capture_device=N
+simple-phone devices
 ```
 
 `call` mostra o status SIP, o tempo até o atendimento e perda, jitter, RTT e MOS de cada fluxo RTP. `call` e `answer` saem com 0 quando a chamada foi atendida com áudio, então servem em scripts:
