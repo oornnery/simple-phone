@@ -1,0 +1,9 @@
+{
+  "account_id": "answer-echo",
+  "server": "pbx.example.com",
+  "user": "1002",
+  "password_env": "SIP_PASSWORD_1002",
+  "media": "echo",
+  "amd": false,
+  "record": "/tmp/received.wav"
+}

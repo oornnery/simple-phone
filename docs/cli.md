@@ -84,6 +84,38 @@ simple-phone call 1002 --server pbx --user 1001 --media wav --wav reference.wav 
 
 Flags override the profile, and `--set` overrides both. `--set` reads JSON values: numbers, `true`/`false`, lists.
 
+## Profiles
+
+A profile keeps an account in a JSON file: any `Settings` field, plus `password_env`, the name of the variable that holds the password (default `SIP_PASSWORD`). The password itself never goes in the file.
+
+```json
+{
+  "account_id": "pbx",
+  "server": "pbx.example.com",
+  "user": "1001",
+  "register": true,
+  "password_env": "SIP_PASSWORD"
+}
+```
+
+```bash
+export SIP_PASSWORD=...
+simple-phone call 1002 --profile pbx.json
+simple-phone call 1002 --profile pbx.json --media echo --duration 60   # flags override the profile
+simple-phone doctor --profile pbx.json
+```
+
+| Example | For |
+|---|---|
+| [pbx.json](../examples/accounts/pbx.json) | An extension registered with a PBX |
+| [pbx-full.json](../examples/accounts/pbx-full.json) | Digest login, identity domain, outbound proxy, codecs, PRACK, session timer, MWI, following 3xx |
+| [trunk.json](../examples/accounts/trunk.json) | A trunk authenticated by IP: no REGISTER |
+| [nat.json](../examples/accounts/nat.json) | Behind NAT: TCP, STUN, ICE, and SRTP when the other side offers it |
+| [answer-echo.json](../examples/accounts/answer-echo.json) | The answering side of a test: echoes and records what it hears |
+| [local.json](../examples/accounts/local.json), [local-b.json](../examples/accounts/local-b.json) | Two accounts on this machine, no PBX |
+
+From Python: `AsyncPhone.from_profile("pbx.json")`.
+
 ## Media modes
 
 | Mode | What it sends |

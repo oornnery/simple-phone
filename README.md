@@ -65,6 +65,8 @@ simple-phone devices
 simple-phone call 1002 --profile account.json --json report.json && echo "route ok"
 ```
 
+Keep an account in a JSON file and pass `--profile`: examples for a PBX, a trunk, NAT and a test answerer are in [examples/accounts/](examples/accounts/) and [docs/cli.md#profiles](docs/cli.md#profiles).
+
 All options, the report and the exit codes: [docs/cli.md](docs/cli.md).
 
 ## Use it from Python

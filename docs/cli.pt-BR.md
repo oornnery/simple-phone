@@ -84,6 +84,38 @@ simple-phone call 1002 --server pbx --user 1001 --media wav --wav reference.wav 
 
 As flags têm precedência sobre o perfil, e `--set` sobre os dois. `--set` lê valores JSON: números, `true`/`false`, listas.
 
+## Perfis
+
+Um perfil guarda uma conta num arquivo JSON: qualquer campo de `Settings`, mais `password_env`, o nome da variável que guarda a senha (padrão `SIP_PASSWORD`). A senha em si nunca vai no arquivo.
+
+```json
+{
+  "account_id": "pbx",
+  "server": "pbx.example.com",
+  "user": "1001",
+  "register": true,
+  "password_env": "SIP_PASSWORD"
+}
+```
+
+```bash
+export SIP_PASSWORD=...
+simple-phone call 1002 --profile pbx.json
+simple-phone call 1002 --profile pbx.json --media echo --duration 60   # as opções valem mais que o perfil
+simple-phone doctor --profile pbx.json
+```
+
+| Exemplo | Para |
+|---|---|
+| [pbx.json](../examples/accounts/pbx.json) | Um ramal registrado num PABX |
+| [pbx-full.json](../examples/accounts/pbx-full.json) | Login Digest, domínio da identidade, proxy de saída, codecs, PRACK, session timer, MWI, seguir 3xx |
+| [trunk.json](../examples/accounts/trunk.json) | Um trunk autenticado por IP: sem REGISTER |
+| [nat.json](../examples/accounts/nat.json) | Atrás de NAT: TCP, STUN, ICE e SRTP quando o outro lado oferece |
+| [answer-echo.json](../examples/accounts/answer-echo.json) | O lado que atende num teste: devolve e grava o que ouve |
+| [local.json](../examples/accounts/local.json), [local-b.json](../examples/accounts/local-b.json) | Duas contas nesta máquina, sem PABX |
+
+Pelo Python: `AsyncPhone.from_profile("pbx.json")`.
+
 ## Modos de mídia
 
 | Modo | O que envia |

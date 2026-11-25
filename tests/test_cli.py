@@ -83,6 +83,13 @@ class ArgumentsTest(unittest.TestCase):
             self.assertEqual((settings.media, settings.wav_loop), ("wav", True))
             self.assertTrue(Path(settings.wav).exists())
 
+    def test_example_profiles_are_valid(self):
+        folder = Path(__file__).resolve().parents[1] / "examples" / "accounts"
+        for path in folder.glob("*.json"):
+            with self.subTest(path.name):
+                opt = cli.parse_args(["call", "1002", "--profile", str(path)])
+                cli.settings_from(opt)
+
     def test_bad_input(self):
         with self.assertRaises(ValueError):
             cli.settings_from(cli.parse_args(["call", "1", "--server", "x"]))

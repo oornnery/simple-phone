@@ -1,0 +1,8 @@
+{
+  "account_id": "trunk",
+  "server": "192.0.2.20",
+  "user": "551130000000",
+  "register": false,
+  "codec": "PCMA,PCMU",
+  "media": "echo"
+}

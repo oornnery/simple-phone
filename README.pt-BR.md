@@ -65,6 +65,8 @@ simple-phone devices
 simple-phone call 1002 --profile conta.json --json relatorio.json && echo "rota ok"
 ```
 
+Guarde uma conta num arquivo JSON e passe `--profile`: há exemplos para PABX, trunk, NAT e um atendedor de teste em [examples/accounts/](examples/accounts/) e [docs/cli.pt-BR.md#perfis](docs/cli.pt-BR.md#perfis).
+
 Todas as opções, o relatório e os códigos de saída: [docs/cli.pt-BR.md](docs/cli.pt-BR.md).
 
 ## Usar pelo Python

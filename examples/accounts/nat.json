@@ -1,0 +1,10 @@
+{
+  "account_id": "nat",
+  "server": "pbx.example.com",
+  "user": "1001",
+  "password_env": "SIP_PASSWORD",
+  "transport": "tcp",
+  "stun_servers": ["stun.example.com:3478"],
+  "ice": true,
+  "srtp": "optional"
+}

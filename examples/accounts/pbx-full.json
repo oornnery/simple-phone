@@ -1,0 +1,17 @@
+{
+  "account_id": "pbx-full",
+  "server": "pbx.example.com",
+  "port": 5060,
+  "user": "1001",
+  "auth_user": "1001-login",
+  "domain": "voip.example.com",
+  "proxy": "sip:sbc.example.com:5060;lr",
+  "password_env": "SIP_PASSWORD",
+  "local_port": 5070,
+  "rtp_port": 40000,
+  "codec": "PCMA,PCMU,opus",
+  "prack": "optional",
+  "session_timer": "optional",
+  "mwi": true,
+  "follow_redirects": true
+}
