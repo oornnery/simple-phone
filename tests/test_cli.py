@@ -1,6 +1,7 @@
 import contextlib
 import io
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -99,6 +100,69 @@ class CommandsTest(unittest.TestCase):
             self.assertEqual(status, 0, output.getvalue())
             self.assertIn("SIP/2.0 200 OK", output.getvalue())
             self.assertIn("CSeq:", output.getvalue())
+
+    def test_a_startup_error_is_an_error_line_not_a_traceback(self):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            status = cli.main(
+                ["call", "1", *LOCAL, "--user", "1001", "--codec", "nope"]
+            )
+        self.assertEqual(status, 1)
+        self.assertIn("error: Codec unavailable", output.getvalue())
+
+
+NULL_SOUND_CARD = """
+pcm.!default { type null hint { show on description "Null (default)" } }
+pcm.nulldev { type null hint { show on description "Null device" } }
+"""
+
+
+class SoundCardTest(unittest.TestCase):
+    """mic, speaker and device ids, on ALSA null devices (no hardware)."""
+
+    def run_cli(self, *args, wait=True):
+        command = [sys.executable, "-m", "simple_phone.cli", *args]
+        output = subprocess.PIPE if wait else subprocess.DEVNULL
+        process = subprocess.Popen(
+            command, env=self.env, text=True, stdout=output, stderr=subprocess.STDOUT
+        )
+        if not wait:
+            self.addCleanup(process.wait)
+            self.addCleanup(process.kill)
+            return process
+        output, _ = process.communicate(timeout=60)
+        return process.returncode, output
+
+    def setUp(self):
+        folder = Path(tempfile.mkdtemp())
+        (folder / "alsa.conf").write_text(NULL_SOUND_CARD)
+        self.env = {**os.environ, "ALSA_CONFIG_PATH": str(folder / "alsa.conf")}
+
+    def test_devices_have_numeric_ids(self):
+        status, output = self.run_cli("devices")
+        self.assertEqual(status, 0, output)
+        self.assertRegex(output, r"1 +│ nulldev")
+
+    def test_mic_and_speaker_on_a_chosen_device(self):
+        self.run_cli("answer", *LOCAL, "--user", "1002", "--local-port", "5095",
+                     "--rtp-port", "41800", "--media", "echo", "--speaker",
+                     "--duration", "3", "--timeout", "20", wait=False)  # fmt: skip
+        time.sleep(1.5)  # its endpoint starts
+        status, output = self.run_cli(
+            "call", "sip:1002@127.0.0.1:5095", *LOCAL, "--user", "1001",
+            "--media", "mic", "--speaker", "--set", "capture_device=1",
+            "--set", "playback_device=1", "--duration", "2",
+        )  # fmt: skip
+        self.assertEqual(status, 0, output)
+
+    def test_an_unknown_device_is_an_error(self):
+        status, output = self.run_cli(
+            "call", "1", *LOCAL, "--user", "1001", "--media", "mic",
+            "--set", "capture_device=99",
+        )  # fmt: skip
+        self.assertEqual(status, 1)
+        self.assertIn("capture_device=99: no such audio device", output)
+        self.assertNotIn("Traceback", output)
 
 
 if __name__ == "__main__":

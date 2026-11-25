@@ -50,3 +50,4 @@ Run Python with `.venv/bin/python`, not `uv run`. `uv run` may rebuild the nativ
 - PJSUA offers `m=text` on every call by default. The core turns it off unless `Settings.text` is set.
 - `hold()` and `unhold()` wait for the re-INVITE answer. Calling `unhold()` before that fails with `PJ_EINVALIDOP`.
 - A REGISTER 401 or 407 that reaches `onRegState` is final. PJSUA answers the challenge itself.
+- SWIG returns a field whose C type it does not know (e.g. `AudioDevInfo.id`, a `pjmedia_aud_dev_index`) as an opaque pointer. Read only fields that come back as Python values. CI has no sound card: `tests/test_cli.py` runs the audio-device paths on ALSA null devices.
