@@ -340,15 +340,19 @@ class Endpoint:
             setattr(config, key, getattr(updated, key))
 
     def devices(self):
+        # The id is the position in this list, as setCaptureDev() takes it.
+        # AudioDevInfo.id is a pjmedia_aud_dev_index, which SWIG returns as
+        # an opaque pointer (and warns about a leak when it is freed).
+        found = self.lib.audDevManager().enumDev2()
         return [
             {
-                "id": d.id,
+                "id": index,
                 "name": d.name,
                 "driver": d.driver,
                 "inputs": d.inputCount,
                 "outputs": d.outputCount,
             }
-            for d in self.lib.audDevManager().enumDev2()
+            for index, d in enumerate(found)
         ]
 
     def codecs(self):

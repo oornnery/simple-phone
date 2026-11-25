@@ -65,6 +65,11 @@ class ApiTest(unittest.IsolatedAsyncioTestCase):
         async def answer(event):
             await event.call.answer(media="echo")
 
+    async def test_audio_device_ids_are_list_positions(self):
+        # No sound card in CI: then this only checks the call works.
+        found = await self.phone.devices()
+        self.assertEqual([d["id"] for d in found], list(range(len(found))))
+
     async def test_account_from_keyword_fields(self):
         third = await self.phone.account(user="1003")
         self.assertEqual(third.account_id, "1003")
