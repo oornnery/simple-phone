@@ -40,6 +40,15 @@ def quiet_stdout():
         os.close(devnull)
 
 
+def check_devices(count, capture, playback):
+    """PJSUA takes any device index and then sends silence: check it."""
+    for name, index in (("capture_device", capture), ("playback_device", playback)):
+        if index is not None and not 0 <= index < count:
+            raise ValueError(
+                f"{name}={index}: no such audio device (see simple-phone devices)"
+            )
+
+
 class LogWriter(pj.LogWriter):
     def __init__(self, endpoint):
         super().__init__()
@@ -320,16 +329,7 @@ class Endpoint:
         if not uses_card:
             devices.setNullDev()
         else:
-            # PJSUA takes any index here and then sends silence: check it.
-            count = devices.getDevCount()
-            for name, index in (
-                ("capture_device", capture),
-                ("playback_device", playback),
-            ):
-                if index is not None and not 0 <= index < count:
-                    raise ValueError(
-                        f"{name}={index}: no such audio device (see simple-phone devices)"
-                    )
+            check_devices(devices.getDevCount(), capture, playback)
             devices.setCaptureDev(DEFAULT_CAPTURE if capture is None else capture)
             devices.setPlaybackDev(DEFAULT_PLAYBACK if playback is None else playback)
         self.audio = wanted
