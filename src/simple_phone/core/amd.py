@@ -10,7 +10,9 @@ Three layers, all on the audio this side receives (16-bit mono PCM frames):
 
 Results: human, machine (IVR or voicemail greeting), voicemail (beep heard),
 sit, silence (nobody spoke), unsure. A later tone can upgrade the result:
-machine becomes voicemail on the beep, anything becomes sit.
+machine becomes voicemail on the beep, anything becomes sit. "silence" is
+provisional: if someone speaks later, the voice pattern starts over from
+that first voice and its result follows.
 
 Pure Python and no pjsua2, so it can be tested with synthetic audio.
 """
@@ -20,6 +22,15 @@ import math
 import sys
 
 RESULTS = ("human", "machine", "voicemail", "sit", "silence", "unsure")
+# Detector limits that Settings exposes as amd_<name>; defaults from Asterisk.
+LIMITS = (
+    "initial_silence_ms",
+    "greeting_ms",
+    "after_greeting_silence_ms",
+    "total_ms",
+    "voice_rms",
+    "max_words",
+)
 SIT_TONES = (913.8, 985.2, 1370.6, 1428.5, 1776.7)  # ITU-T E.180 segments
 
 
@@ -57,6 +68,7 @@ class Detector:
         listen_s=30,  # keep looking for tones this long after the answer
     ):
         self.rate = rate
+        self.voice_rms = voice_rms
         self.voice_energy = voice_rms * voice_rms
         self.initial_silence_ms = initial_silence_ms
         self.greeting_ms = greeting_ms
@@ -75,10 +87,19 @@ class Detector:
         self.words = self.voice_ms = self.voice_run = self.silence_run = 0
         self.in_word = False
         self.voice_decided = False
+        self.voice_result = None  # the voice layer's own latest decision
+        self.voice_start = 0  # ms after the answer where voice analysis starts
+        self.first_voice_ms = None  # ms of silence before the first voice
         self.tone = None  # [freq, start_ms, length_ms] of the current tone
         self.segments = []  # finished tones: (freq, start_ms, length_ms)
         self.clock = 0  # ms of audio since the first frame (tones may be early media)
         self.answer_clock = None
+
+    def configure(self, **limits):
+        """New limits (names from LIMITS) for the decisions still to come."""
+        for name, value in limits.items():
+            setattr(self, name, value)
+        self.voice_energy = self.voice_rms * self.voice_rms
 
     # -- input --
 
@@ -108,17 +129,33 @@ class Detector:
         if self.hints is None:
             return  # before the answer only tones count
         self.elapsed += frame_ms
-        if not self.voice_decided:
-            self._voice(energy >= self.voice_energy, frame_ms)
+        self._watch_voice(energy >= self.voice_energy, frame_ms)
         if self.elapsed >= self.listen_ms:
             self._close_tone()
             self.done = True
 
     # -- layer 2: voice pattern --
 
+    def _watch_voice(self, voiced, frame_ms):
+        began = self.elapsed - frame_ms  # where this frame starts
+        if voiced and self.first_voice_ms is None:
+            self.first_voice_ms = began
+        if voiced and self.voice_decided and self.voice_result == "silence":
+            self._start_voice_over(began)  # "silence" was provisional
+        if not self.voice_decided:
+            self._voice(voiced, frame_ms)
+
+    def _start_voice_over(self, start):
+        """Someone speaks after "silence": judge the voice pattern again,
+        with the same limits, counted from this first voice."""
+        self.words = self.voice_ms = self.voice_run = self.silence_run = 0
+        self.in_word = False
+        self.voice_decided = False
+        self.voice_start = start
+
     def _voice(self, voiced, frame_ms):
         verdict = self._heard(frame_ms) if voiced else self._quiet(frame_ms)
-        if verdict is None and self.elapsed >= self.total_ms:
+        if verdict is None and self.elapsed - self.voice_start >= self.total_ms:
             verdict = (
                 ("machine", "unsure, but answered at once")
                 if (self.hints or {}).get("fast_answer")
@@ -149,7 +186,8 @@ class Detector:
         self.silence_run += frame_ms
         if self.silence_run >= self.between_words_ms:
             self.in_word, self.voice_run = False, 0
-        if not self.words and self.elapsed >= self.initial_silence_ms:
+        quiet_for = self.elapsed - self.voice_start
+        if not self.words and quiet_for >= self.initial_silence_ms:
             return "silence", "nobody spoke"
         if self.words and self.silence_run >= self.after_greeting_silence_ms:
             return "human", "short greeting, then waited"
@@ -157,6 +195,9 @@ class Detector:
 
     def _decide_voice(self, result, reason):
         self.voice_decided = True
+        self.voice_result = result
+        if self.voice_start:
+            reason += f" after {self.voice_start / 1000:.1f} s of silence"
         current = (self.result or {}).get("result")
         if current not in ("sit", "voicemail"):  # a tone already said more
             self._publish(result, reason)
@@ -219,6 +260,9 @@ class Detector:
             "after_ms": round(self.elapsed),
             "words": self.words,
             "voice_ms": round(self.voice_ms),
+            "leading_silence_ms": round(
+                self.elapsed if self.first_voice_ms is None else self.first_voice_ms
+            ),
             "hints": self.hints,
         }
         self.version += 1
