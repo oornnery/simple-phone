@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.9
+
+- `--compact-headers` (`Settings.compact_headers`) sends SIP header names in compact form: `i:`, `f:`, `t:`, `v:`... PJSUA2 does not expose this, so the binding gets `setCompactForm()` from `packaging/pjsua2_extra.i`.
+- Received messages read every compact header form. Only eight were mapped before: a NOTIFY with `o: dialog` was not seen as BLF.
+- The command can send generated audio: `--media tone` (`--tone HZ`) and `--media noise`. `--loop` repeats `--wav`.
+- `--media-delay` sends silence after the answer before the media starts; `--answer-delay` lets `answer` ring first. Media and DTMF run in the order of their delays.
+- Example profiles for a PBX, a trunk, NAT and a test answerer, a Profiles section in `docs/cli.md`, and README recipes for the command.
+
 ## 0.1.8
 
 - `call` and `answer` work without an account too: `simple-phone call 1002@192.0.2.10` dials the host directly, and `simple-phone answer` waits on this machine. With neither `--server` nor `--profile`, the `From` user is `simple-phone` and nothing registers.
