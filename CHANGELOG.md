@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.10
+
+- AMD: `silence` is provisional. An IVR that answers mute and speaks seconds later used to stay `silence`; now the voice pattern starts over from the first voice, with the same limits, and its result (`machine`, `human` or `unsure`) follows as a new decision. The reason says so (`greeting longer than 1500ms after 3.0 s of silence`), and the result has `leading_silence_ms`. `machine`, `human`, `unsure` and `sit` stay final.
+- AMD limits are settings: `amd_initial_silence_ms`, `amd_greeting_ms`, `amd_after_greeting_silence_ms`, `amd_total_ms`, `amd_voice_rms`, `amd_max_words`, with Asterisk's defaults. `call.amd(...)` takes the same names for one call. The command has `--amd-initial-silence` and `--amd-greeting`.
+
 ## 0.1.9
 
 - `--compact-headers` (`Settings.compact_headers`) sends SIP header names in compact form: `i:`, `f:`, `t:`, `v:`... PJSUA2 does not expose this, so the binding gets `setCompactForm()` from `packaging/pjsua2_extra.i`.
