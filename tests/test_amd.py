@@ -1,6 +1,6 @@
 import unittest
 
-from simple_phone.core.amd import Detector
+from simple_phone.core.amd import Detector, words_verdict
 from simple_phone.media import noise, silence, tone
 
 FRAME = 320  # bytes in 20 ms at 8 kHz, as PJSIP delivers them
@@ -113,6 +113,51 @@ class LateVoiceTest(unittest.TestCase):
         audio = noise(0.6) + silence(1) + silence(2) + noise(3)
         self.assertEqual(decisions(detector, audio), ["human"])
         self.assertEqual(detector.result["leading_silence_ms"], 0)
+
+
+class AnnouncementTest(unittest.TestCase):
+    """Speech in early media, then a failure: the network played the error."""
+
+    def test_early_speech_then_a_failure_is_an_announcement(self):
+        detector = Detector()  # never answered
+        feed(detector, noise(2))
+        detector.unanswered(404, "Not Found")
+        self.assertEqual(detector.result["result"], "sit")
+        self.assertIn("then 404 Not Found", detector.result["reason"])
+
+    def test_ringback_then_a_failure_is_not(self):
+        detector = Detector()
+        feed(detector, tone(425, 1) + silence(4) + tone(425, 1))
+        detector.unanswered(486, "Busy Here")
+        self.assertIsNone(detector.result)
+
+    def test_a_click_is_not_an_announcement(self):
+        detector = Detector()
+        feed(detector, noise(0.3))
+        detector.unanswered(480, "Temporarily Unavailable")
+        self.assertIsNone(detector.result)
+
+
+class WordsTest(unittest.TestCase):
+    def test_phrases_in_portuguese_and_english(self):
+        for text, result in (
+            ("Deixe sua mensagem após o sinal.", "voicemail"),
+            ("Please leave a message after the tone.", "voicemail"),
+            ("O número chamado não existe.", "sit"),
+            ("The number you have dialed is not in service.", "sit"),
+            ("Para segunda via, digite 1.", "ivr"),
+            ("For billing, press 1.", "ivr"),
+        ):
+            with self.subTest(text):
+                self.assertEqual(words_verdict(text)[0], result)
+
+    def test_voicemail_wins_over_not_available(self):
+        text = "Não estou disponível agora, deixe seu recado."
+        self.assertEqual(words_verdict(text)[0], "voicemail")
+
+    def test_whole_words_only(self):
+        self.assertIsNone(words_verdict("Sua impressão foi enviada."))  # not "press"
+        self.assertIsNone(words_verdict("Alô, quem fala?"))
 
 
 if __name__ == "__main__":

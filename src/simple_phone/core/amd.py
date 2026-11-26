@@ -7,6 +7,12 @@ Three layers, all on the audio this side receives (16-bit mono PCM frames):
    short "hello?" and waits; an IVR or voicemail talks for longer.
 3. Tones (Goertzel): SIT tones mean a network announcement ("number
    not in service"); a single pure beep after the answer means voicemail.
+   Speech in early media followed by a failure (4xx-6xx) without an answer
+   is a network announcement too, SIT tones or not.
+
+words_verdict() reads a transcript (optional, see Call.amd(transcribe=...)):
+"leave a message" is voicemail, "not in service" a network announcement,
+"press 1" an IVR.
 
 Results: human, machine (IVR or voicemail greeting), voicemail (beep heard),
 sit, silence (nobody spoke), unsure. A later tone can upgrade the result:
@@ -19,9 +25,12 @@ Pure Python and no pjsua2, so it can be tested with synthetic audio.
 
 import array
 import math
+import re
 import sys
+import unicodedata
 
-RESULTS = ("human", "machine", "voicemail", "sit", "silence", "unsure")
+RESULTS = ("human", "machine", "voicemail", "sit", "silence", "unsure", "ivr")
+ANNOUNCEMENT_MS = 1000  # speech in early media before a failure: an announcement
 # Detector limits that Settings exposes as amd_<name>; defaults from Asterisk.
 LIMITS = (
     "initial_silence_ms",
@@ -94,6 +103,8 @@ class Detector:
         self.segments = []  # finished tones: (freq, start_ms, length_ms)
         self.clock = 0  # ms of audio since the first frame (tones may be early media)
         self.answer_clock = None
+        self.early_sound_ms = 0  # audio above voice_rms before the answer
+        self.early_tone_ms = 0  # of which pure tones (ringback, SIT)
 
     def configure(self, **limits):
         """New limits (names from LIMITS) for the decisions still to come."""
@@ -126,8 +137,10 @@ class Detector:
         energy = sum(x * x for x in samples) / n
         self.clock += frame_ms
         self._tones(samples, energy, frame_ms)
-        if self.hints is None:
-            return  # before the answer only tones count
+        if self.hints is None:  # before the answer: tones, and sound for unanswered()
+            if energy >= self.voice_energy:
+                self.early_sound_ms += frame_ms
+            return
         self.elapsed += frame_ms
         self._watch_voice(energy >= self.voice_energy, frame_ms)
         if self.elapsed >= self.listen_ms:
@@ -204,6 +217,19 @@ class Detector:
 
     # -- layer 3: tones --
 
+    def unanswered(self, code, reason):
+        """The call failed before the answer. Speech in early media first
+        means a network announcement played the error."""
+        self._close_tone()
+        spoken = self.early_sound_ms - self.early_tone_ms  # ringback is no speech
+        if code < 400 or spoken < ANNOUNCEMENT_MS:
+            return
+        if (self.result or {}).get("result") != "sit":
+            seconds = spoken / 1000
+            self._publish(
+                "sit", f"{seconds:.1f} s of early media, then {code} {reason}"
+            )
+
     def _tones(self, samples, energy, frame_ms):
         freq = None
         if energy >= self.voice_energy:
@@ -234,6 +260,8 @@ class Detector:
         self.tone = None
         if length < 150:
             return
+        if self.answer_clock is None:
+            self.early_tone_ms += length
         self.segments = [s for s in self.segments if start - s[1] < 2000]
         self.segments.append((freq, start, length))
         # SIT: 274-380 ms tones from at least two of the low/mid/high bands.
@@ -266,3 +294,48 @@ class Detector:
             "hints": self.hints,
         }
         self.version += 1
+
+
+# -- optional layer 4: what the far end says (needs an STT) --
+
+# First match wins: a greeting that says "not available, leave a message" is
+# voicemail, not an announcement. Lower case, without accents.
+PHRASES = (
+    (
+        "voicemail",
+        (
+            "caixa postal", "deixe sua mensagem", "deixe seu recado", "deixe o seu recado",
+            "apos o sinal", "depois do sinal", "voicemail", "voice mail",
+            "leave a message", "leave your message", "after the tone", "after the beep",
+        ),
+    ),
+    (
+        "sit",
+        (
+            "nao existe", "inexistente", "nao esta disponivel", "fora da area",
+            "fora de area", "esta desligado", "nao foi possivel completar",
+            "nao pode ser completada", "not in service", "no longer in service",
+            "cannot be completed", "has been disconnected", "check the number",
+        ),
+    ),
+    (
+        "ivr",
+        (
+            "digite", "disque", "tecle", "pressione", "opcao", "menu",
+            "press", "dial", "option",
+        ),
+    ),
+)  # fmt: skip
+
+
+def words_verdict(text):
+    """(result, phrase) for the first known phrase in a transcript, else None."""
+    plain = unicodedata.normalize("NFKD", text.lower())
+    plain = "".join(c for c in plain if not unicodedata.combining(c))
+    for result, phrases in PHRASES:
+        for phrase in phrases:
+            if re.search(
+                rf"\b{re.escape(phrase)}\b", plain
+            ):  # "press", not "impressao"
+                return result, phrase
+    return None

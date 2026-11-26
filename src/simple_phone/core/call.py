@@ -206,6 +206,8 @@ class Call(pj.Call):
                 "reason": info.lastReason,
             }
         )
+        if info.state == pj.PJSIP_INV_STATE_DISCONNECTED and not self.answered_at:
+            self.amd_unanswered(code, info.lastReason)  # before StateChanged
         self.emit(
             C.StateChanged,
             state=info.stateText,
@@ -483,6 +485,13 @@ class Call(pj.Call):
                 **{name: getattr(self.config, f"amd_{name}") for name in LIMITS}
             )
 
+    def amd_unanswered(self, code, reason):
+        """A failure before the answer may follow an announcement in early
+        media: let the detector judge it, and emit what it says now."""
+        if self.amd is not None:
+            self.amd.unanswered(code, reason)
+            self.emit_amd()  # no retap(): the media is going away
+
     def poll_amd(self):
         """Emit new AMD decisions; detach the port once it is done.
 
@@ -490,13 +499,17 @@ class Call(pj.Call):
         """
         if self.amd is None:
             return
-        if self.amd.version != self.amd_seen:
-            self.amd_seen = self.amd.version
-            result = self.amd.result
-            if result is not None:
-                self.emit(C.Amd, amd=Amd.parse(result))
+        self.emit_amd()
         if self.amd.done and self.tap_port is not None:
             self.retap()
+
+    def emit_amd(self):
+        """A Call.Amd event for a decision not emitted yet."""
+        if self.amd is None or self.amd.version == self.amd_seen:
+            return
+        self.amd_seen = self.amd.version
+        if self.amd.result is not None:
+            self.emit(C.Amd, amd=Amd.parse(self.amd.result))
 
     # -- extra audio into the call (e.g. text-to-speech) --
 

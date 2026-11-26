@@ -100,6 +100,43 @@ class ApiTest(unittest.IsolatedAsyncioTestCase):
             async with self.phone.call(self.other.uri) as call:
                 await call.amd(amd_greeting_ms=1)
 
+    async def test_early_media_announcement_then_404_is_sit(self):
+        announcement = Path(tempfile.mkdtemp()) / "announcement.wav"
+        save_wav(announcement, noise(3))
+
+        @self.other.on(AsyncPhone.Incoming)
+        async def announce(event):
+            await event.call.answer(183, media="wav", wav=announcement)
+            await asyncio.sleep(2)
+            await event.call.reject(404)
+
+        call = await self.phone.dial(self.other.uri)
+        amd = await call.amd(timeout=10)
+        self.assertEqual(amd.result, "sit", amd.reason)
+        self.assertIn("404", amd.reason)
+
+    async def test_transcript_corrects_the_sound_verdict(self):
+        class Voicemail:  # stands in for WhisperSTT
+            async def transcribe(self, pcm, rate):
+                return "Oi, aqui é a Ana. Deixe sua mensagem após o sinal."
+
+        greeting = Path(tempfile.mkdtemp()) / "greeting.wav"
+        save_wav(greeting, noise(6))
+
+        @self.other.on(AsyncPhone.Incoming)
+        async def answer(event):
+            await event.call.answer(media="wav", wav=greeting)
+
+        async with self.phone.call(self.other.uri) as call:
+            with self.assertRaises(PhoneError):  # no STT: transcribe is refused
+                await call.amd(transcribe=1)
+            self.phone.stt = Voicemail()
+            amd = await call.amd(timeout=10, transcribe=2)
+        self.assertEqual(amd.result, "voicemail", amd.reason)  # sound alone: machine
+        self.assertIn("Deixe sua mensagem", amd.raw["transcript"])
+        results = [e.amd.result for e in call.timeline if isinstance(e, Call.Amd)]
+        self.assertEqual(results, ["machine", "voicemail"])
+
     async def test_account_from_keyword_fields(self):
         third = await self.phone.account(user="1003")
         self.assertEqual(third.account_id, "1003")

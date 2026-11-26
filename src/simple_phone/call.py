@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import time
 import wave
 from dataclasses import replace
 
+from .core.amd import words_verdict
 from .core.call import Call as Native
 from .events import CallEvents
 from .media import AudioFrame, Stream, rms, utterances
@@ -396,14 +398,33 @@ class Call(CallEvents):
         assert self.report is not None
         return self.report
 
-    async def amd(self, timeout=10, settle=0.0, **limits):
-        """Who answered (Amd: human, machine, voicemail, sit...). With
+    async def amd(self, timeout=10, settle=0.0, *, transcribe=0.0, **limits):
+        """Who answered (Amd: human, machine, voicemail, sit, ivr...). With
         `settle`, keep listening that long for a beep, a SIT or a voice
         after "silence" that would change the result. `limits` are Settings'
         amd_* fields, for this call only: call.amd(amd_initial_silence_ms=5000).
-        They apply to the decisions still to come."""
+        They apply to the decisions still to come.
+
+        `transcribe`: also transcribe this many seconds of the far end with
+        the phone's STT and judge the words: "leave a message" is voicemail,
+        "not in service" sit, "press 1" ivr. Off by default: STT is costly."""
         if limits:
             await self._do(Native.set_amd_limits, limits)
+        if transcribe and self.phone.stt is None:
+            raise PhoneError(
+                "amd(transcribe=...) needs an STT: AsyncPhone(..., stt=...)"
+            )
+        heard = (
+            asyncio.ensure_future(self._transcript(transcribe)) if transcribe else None
+        )
+        try:
+            amd = await self._amd_by_sound(timeout, settle)
+            return amd if heard is None else self._amd_by_words(amd, await heard)
+        finally:
+            if heard is not None:
+                heard.cancel()
+
+    async def _amd_by_sound(self, timeout, settle):
         event = await self.wait_for(self.Amd, timeout=timeout)
         deadline = asyncio.get_running_loop().time() + settle
         while (left := deadline - asyncio.get_running_loop().time()) > 0:
@@ -412,6 +433,32 @@ class Call(CallEvents):
             except PhoneError:
                 break
         return event.amd
+
+    async def _transcript(self, seconds):
+        """What the far end says in the next `seconds`, in one STT pass."""
+        pcm = bytearray()
+        with contextlib.suppress(TimeoutError):
+            async with asyncio.timeout(seconds):
+                async for frame in self.audio():
+                    pcm += frame.pcm
+        if not pcm:
+            return ""
+        return (await self.phone.stt.transcribe(bytes(pcm), self.AUDIO_RATE)).strip()
+
+    def _amd_by_words(self, amd, text):
+        """The sound verdict, corrected by the transcript's words. A beep, a
+        SIT or an early-media announcement says more than words do."""
+        raw = {**amd.raw, "transcript": text}
+        verdict = words_verdict(text)
+        if verdict is None or amd.result in ("sit", "voicemail"):
+            return replace(amd, raw=raw)
+        result, phrase = verdict
+        reason = f'"{phrase}" in the transcript'
+        better = replace(
+            amd, result=result, reason=reason, raw=raw | {"result": result}
+        )
+        self.emit(self.Amd(amd=better))
+        return better
 
     # -- live streams --
 
