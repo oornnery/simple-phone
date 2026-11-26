@@ -10,7 +10,7 @@ from uuid import uuid4
 from .._native import pjsua2 as pj
 from ..events import CallEvents as C
 from ..models import Amd
-from .amd import Detector
+from .amd import LIMITS, Detector
 from .config import DTMF_DIGITS
 from .metrics import direction, estimate_mos, millis, utc_now
 
@@ -157,7 +157,9 @@ class Call(pj.Call):
         self.streams_out = []  # StreamPorts connected to this call (say)
         self.tones = None  # ToneGenerator for in-band DTMF
         # Outgoing calls only: is the far end a person, an IVR, an announcement?
-        self.amd = Detector(TAP_RATE) if self.config.amd and not self.pending else None
+        limits = {name: getattr(self.config, f"amd_{name}") for name in LIMITS}
+        wanted = self.config.amd and not self.pending
+        self.amd = Detector(TAP_RATE, **limits) if wanted else None
         self.taps = {}  # token -> callable(pcm bytes), called on the media thread
         self.plays = {}  # token -> AudioMediaPlayer sending a WAV into the call
         self.tap_port = None
@@ -472,6 +474,14 @@ class Call(pj.Call):
             self.connect(audio, self.recorder)
         path = str(path) if path else None
         self.config = replace(self.config, record=path)
+
+    def set_amd_limits(self, limits):
+        """amd_* limits for this call only; Settings validates them."""
+        self.config = replace(self.config, **limits)
+        if self.amd is not None:
+            self.amd.configure(
+                **{name: getattr(self.config, f"amd_{name}") for name in LIMITS}
+            )
 
     def poll_amd(self):
         """Emit new AMD decisions; detach the port once it is done.

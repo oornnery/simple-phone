@@ -92,10 +92,17 @@ class Amd:
     reason: str
     hints: dict | None  # SIP layer: answer_seconds, ringing, fast_answer, ...
     raw: dict
+    leading_silence_ms: int | None = None  # quiet before the first voice
 
     @classmethod
     def parse(cls, data):
-        return cls(data["result"], data["reason"], data.get("hints"), dict(data))
+        return cls(
+            data["result"],
+            data["reason"],
+            data.get("hints"),
+            dict(data),
+            leading_silence_ms=data.get("leading_silence_ms"),
+        )
 
 
 @dataclass

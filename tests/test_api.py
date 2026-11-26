@@ -1,8 +1,10 @@
 import asyncio
 import contextlib
+import tempfile
 import time
 import unittest
 from dataclasses import dataclass, replace
+from pathlib import Path
 
 from simple_phone import (
     AsyncPhone,
@@ -17,6 +19,7 @@ from simple_phone import (
     Timeouts,
     WaitTimeout,
 )
+from simple_phone.media import noise, save_wav, silence
 
 
 def local(user, account_id, rtp_port, port=5090):
@@ -69,6 +72,33 @@ class ApiTest(unittest.IsolatedAsyncioTestCase):
         # No sound card in CI: then this only checks the call works.
         found = await self.phone.devices()
         self.assertEqual([d["id"] for d in found], list(range(len(found))))
+
+    async def answer_mute_then_speak(self):
+        """The far end answers with 3 s of silence, then a long greeting."""
+        greeting = Path(tempfile.mkdtemp()) / "late.wav"
+        save_wav(greeting, silence(3) + noise(6))
+
+        @self.other.on(AsyncPhone.Incoming)
+        async def answer(event):
+            await event.call.answer(media="wav", wav=greeting)
+
+    async def test_amd_waits_out_a_mute_answer(self):
+        await self.answer_mute_then_speak()
+        async with self.phone.call(self.other.uri) as call:
+            amd = await call.amd(timeout=10, settle=3)
+        self.assertEqual(amd.result, "machine", amd.reason)
+        self.assertAlmostEqual(amd.leading_silence_ms, 3000, delta=300)
+        results = [e.amd.result for e in call.timeline if isinstance(e, Call.Amd)]
+        self.assertEqual(results, ["silence", "machine"])
+
+    async def test_amd_limits_for_one_call(self):
+        await self.answer_mute_then_speak()
+        async with self.phone.call(self.other.uri) as call:
+            amd = await call.amd(timeout=10, amd_initial_silence_ms=5000)
+        self.assertEqual(amd.result, "machine", amd.reason)  # no "silence" first
+        with self.assertRaises(ValueError):
+            async with self.phone.call(self.other.uri) as call:
+                await call.amd(amd_greeting_ms=1)
 
     async def test_account_from_keyword_fields(self):
         third = await self.phone.account(user="1003")

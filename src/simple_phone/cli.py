@@ -129,6 +129,20 @@ def parse_args(argv=None):
         const=False,
         help="skip answer detection",
     )
+    add(
+        "--amd-initial-silence",
+        dest="amd_initial_silence_ms",
+        type=int,
+        metavar="MS",
+        help="AMD: nobody spoke this long means silence (default 2500)",
+    )
+    add(
+        "--amd-greeting",
+        dest="amd_greeting_ms",
+        type=int,
+        metavar="MS",
+        help="AMD: speech longer than this means machine (default 1500)",
+    )
 
     group = common.add_argument_group("output")
     add = group.add_argument

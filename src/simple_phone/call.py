@@ -396,10 +396,14 @@ class Call(CallEvents):
         assert self.report is not None
         return self.report
 
-    async def amd(self, timeout=10, settle=0.0):
+    async def amd(self, timeout=10, settle=0.0, **limits):
         """Who answered (Amd: human, machine, voicemail, sit...). With
-        `settle`, keep listening that long for a beep or SIT that would
-        change the result."""
+        `settle`, keep listening that long for a beep, a SIT or a voice
+        after "silence" that would change the result. `limits` are Settings'
+        amd_* fields, for this call only: call.amd(amd_initial_silence_ms=5000).
+        They apply to the decisions still to come."""
+        if limits:
+            await self._do(Native.set_amd_limits, limits)
         event = await self.wait_for(self.Amd, timeout=timeout)
         deadline = asyncio.get_running_loop().time() + settle
         while (left := deadline - asyncio.get_running_loop().time()) > 0:

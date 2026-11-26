@@ -21,6 +21,12 @@ RANGES = {  # rtp_port: room for the 100 RTP ports above it
     "port": (1, 65535),
     "local_port": (0, 65535),
     "rtp_port": (1024, 65434),
+    "amd_initial_silence_ms": (100, 60000),
+    "amd_greeting_ms": (100, 60000),
+    "amd_after_greeting_silence_ms": (100, 60000),
+    "amd_total_ms": (500, 60000),
+    "amd_voice_rms": (1, 32767),
+    "amd_max_words": (1, 100),
 }
 
 
@@ -47,6 +53,13 @@ class Config:
     playback_device: int | None = None
     ec_tail: int = 200
     amd: bool = True  # classify outgoing calls: human, IVR, announcement
+    # AMD limits (Asterisk's defaults); voice counts from the first voice
+    amd_initial_silence_ms: int = 2500  # nobody spoke this long: "silence"
+    amd_greeting_ms: int = 1500  # speech longer than this: "machine"
+    amd_after_greeting_silence_ms: int = 800  # quiet after a short hello: "human"
+    amd_total_ms: int = 5000  # no decision by then: "unsure"
+    amd_voice_rms: int = 400  # frames below this level are silence
+    amd_max_words: int = 3  # this many words in a row: "machine"
     follow_redirects: bool = False  # 3xx: follow the new target, as httpx does
     accept_transfers: bool = True  # REFER received: accept (202) or decline (603)
     prack: str = "off"  # 100rel (RFC 3262): off, optional, mandatory
