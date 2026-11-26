@@ -27,6 +27,7 @@ Read [docs/architecture.md](docs/architecture.md) before changing anything under
 ```bash
 bash scripts/dev.sh                 # first time, or after changing dependencies
 bash scripts/check.sh               # ruff, ty, metadata, unit tests: run before every commit
+bash scripts/ci.sh                  # what CI runs; the pre-push hook runs it for you
 bash scripts/test.sh --native       # PJSUA2 integration on localhost
 bash scripts/asterisk.sh && ASTERISK_HOST=127.0.0.1 .venv/bin/python -m unittest discover -s tests -t tests -p 'test_asterisk.py'
 ```

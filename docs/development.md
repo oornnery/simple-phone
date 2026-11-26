@@ -56,23 +56,26 @@ Only wheels are distributed. A source build needs `scripts/build_pjsip.sh` first
 
 ## CI
 
-`.github/workflows/ci.yml` runs on pushes to `main` and on pull requests:
+`.github/workflows/ci.yml` runs on pushes to `main` and on pull requests, in one job:
 
-1. **lint:** `ruff check` and `ruff format --check`.
-2. **test:**
-   1. Builds PJSIP. The libraries and the SWIG wrapper are cached by the hash of `scripts/build_pjsip.sh` and `packaging/config_site.h`.
-   2. Runs `check.sh`, which covers ruff, ty and the unit tests, then the native checks.
-   3. Starts Asterisk with `scripts/asterisk.sh` and runs `tests/test_asterisk.py` against it.
-   4. Builds the wheel and checks it.
+1. Builds PJSIP. The libraries and the SWIG wrapper are cached by the hash of `scripts/build_pjsip.sh`, `packaging/config_site.h` and `packaging/pjsua2_extra.i`.
+2. Runs `check.sh`, which covers ruff, ty and the unit tests, then the native checks.
+3. Starts Asterisk with `scripts/asterisk.sh` and runs `tests/test_asterisk.py` against it.
+
+To spend Actions minutes only on runs that pass:
+
+- `bash scripts/ci.sh` runs the same steps on this machine; `--wheel` also builds and checks the wheel. The Asterisk tests need Docker.
+- `.githooks/pre-push` runs it before every `git push`. `scripts/dev.sh` turns it on (`git config core.hooksPath .githooks`). When a push changes only text (`*.md`, `docs/`, `examples/api/`), the hook runs `check.sh` only. Skip it once with `git push --no-verify`.
+- CI skips pushes that change only text, and a newer push cancels the run in progress.
+- [act](https://github.com/nektos/act) can run the workflow itself in Docker, if you want the exact GitHub steps; it downloads a runner image of several GB.
 
 ## Releases
 
 `.github/workflows/release.yml` runs on a `v*` tag:
 
-1. The CI workflow runs first.
-2. The tag must equal `v` + the version in `pyproject.toml`.
-3. cibuildwheel builds `manylinux_2_28` wheels, then runs the unit and native tests against each one.
-4. The wheels are published to PyPI with trusted publishing, so no token is stored.
+1. The tag must equal `v` + the version in `pyproject.toml`.
+2. cibuildwheel builds `manylinux_2_28` wheels, then runs the unit and native tests against each one.
+3. The wheels are published to PyPI with trusted publishing, so no token is stored.
 
 One-time setup on PyPI: add a trusted publisher (Account → Publishing) with this repository, the workflow `release.yml` and the environment `pypi`. On GitHub, create the environment `pypi`.
 
@@ -80,6 +83,7 @@ To release:
 
 1. Bump `version` in `pyproject.toml` and `__version__` in `src/simple_phone/version.py`. `check_package.py --metadata` fails if they differ.
 2. Run `uv lock`, so `uv sync --locked` accepts the new version.
+   Then `bash scripts/ci.sh --wheel`: the release builds the wheels without running CI again.
 3. Add the version to `CHANGELOG.md` and commit as `chore: release X.Y.Z`.
 4. Tag and push:
 

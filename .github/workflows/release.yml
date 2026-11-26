@@ -1,7 +1,9 @@
 name: release
 
-# Push a tag v<version> (the version in pyproject.toml): CI runs, then the
-# manylinux wheels are built, tested and published to PyPI.
+# Push a tag v<version> (the version in pyproject.toml): the manylinux
+# wheels are built, tested (unit and PJSUA2 tests on each wheel) and
+# published to PyPI. The commit already passed ci.yml on main, so CI does not
+# run again here.
 on:
   push:
     tags: ["v*"]
@@ -10,11 +12,7 @@ permissions:
   contents: read
 
 jobs:
-  ci:
-    uses: ./.github/workflows/ci.yml
-
   wheels:
-    needs: ci
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4

@@ -56,23 +56,26 @@ Só wheels são distribuídos. Um build a partir do fonte precisa rodar `scripts
 
 ## CI
 
-O `.github/workflows/ci.yml` roda em pushes para `main` e em pull requests:
+O `.github/workflows/ci.yml` roda em pushes para `main` e em pull requests, num job só:
 
-1. **lint:** `ruff check` e `ruff format --check`.
-2. **test:**
-   1. Compila o PJSIP. As bibliotecas e o wrapper SWIG ficam em cache pelo hash de `scripts/build_pjsip.sh` e `packaging/config_site.h`.
-   2. Roda o `check.sh`, que cobre ruff, ty e os testes unitários, e depois os testes nativos.
-   3. Sobe o Asterisk com `scripts/asterisk.sh` e roda `tests/test_asterisk.py` contra ele.
-   4. Gera o wheel e o confere.
+1. Compila o PJSIP. As bibliotecas e o wrapper SWIG ficam em cache pelo hash de `scripts/build_pjsip.sh`, `packaging/config_site.h` e `packaging/pjsua2_extra.i`.
+2. Roda o `check.sh`, que cobre ruff, ty e os testes unitários, e depois os testes nativos.
+3. Sobe o Asterisk com `scripts/asterisk.sh` e roda `tests/test_asterisk.py` contra ele.
+
+Para gastar minutos do Actions só com execuções que passam:
+
+- `bash scripts/ci.sh` roda os mesmos passos nesta máquina; `--wheel` também gera e confere o wheel. Os testes do Asterisk precisam de Docker.
+- `.githooks/pre-push` roda isso antes de cada `git push`. O `scripts/dev.sh` liga o hook (`git config core.hooksPath .githooks`). Quando o push muda só texto (`*.md`, `docs/`, `examples/api/`), o hook roda só o `check.sh`. Para pular uma vez: `git push --no-verify`.
+- A CI ignora pushes que mudam só texto, e um push novo cancela a execução em andamento.
+- O [act](https://github.com/nektos/act) roda o próprio workflow em Docker, se você quiser os passos exatos do GitHub; ele baixa uma imagem de runner de vários GB.
 
 ## Publicação
 
 O `.github/workflows/release.yml` roda numa tag `v*`:
 
-1. O workflow de CI roda primeiro.
-2. A tag precisa ser `v` + a versão do `pyproject.toml`.
-3. O cibuildwheel gera wheels `manylinux_2_28` e roda os testes unitários e nativos em cada um.
-4. Os wheels são publicados no PyPI por trusted publishing, sem token guardado.
+1. A tag precisa ser `v` + a versão do `pyproject.toml`.
+2. O cibuildwheel gera wheels `manylinux_2_28` e roda os testes unitários e nativos em cada um.
+3. Os wheels são publicados no PyPI por trusted publishing, sem token guardado.
 
 Configuração única no PyPI: cadastre um trusted publisher (Account → Publishing) com este repositório, o workflow `release.yml` e o environment `pypi`. No GitHub, crie o environment `pypi`.
 
@@ -80,6 +83,7 @@ Para publicar:
 
 1. Atualize `version` no `pyproject.toml` e `__version__` em `src/simple_phone/version.py`. O `check_package.py --metadata` falha se forem diferentes.
 2. Rode `uv lock`, para que o `uv sync --locked` aceite a versão nova.
+   Depois, `bash scripts/ci.sh --wheel`: a publicação gera os wheels sem rodar a CI de novo.
 3. Acrescente a versão ao `CHANGELOG.md` e faça o commit `chore: release X.Y.Z`.
 4. Crie a tag e envie:
 

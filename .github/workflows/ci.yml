@@ -1,28 +1,33 @@
 name: ci
 
+# Run it locally first: bash scripts/ci.sh does the same steps.
 on:
   push:
     branches: [main]
+    paths-ignore: # text only: run bash scripts/check.sh locally instead
+      - "**.md"
+      - "docs/**"
+      - "examples/api/**"
+      - "LICENSE"
   pull_request:
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "examples/api/**"
+      - "LICENSE"
   workflow_dispatch:
-  workflow_call: # release.yml runs it before publishing
 
 permissions:
   contents: read
 
+# A newer push makes the running check pointless.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: true
 
 jobs:
-  lint:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
-      - run: uvx ruff check .
-      - run: uvx ruff format --check .
-
+  # One job: each job is billed rounded up to the minute, and check.sh
+  # already runs ruff and ty.
   test:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -61,5 +66,3 @@ jobs:
       - name: Asterisk log
         if: failure()
         run: docker logs simple-phone-asterisk | tail -100
-      - name: Build and check the wheel
-        run: bash scripts/build.sh --python 3.14 && .venv/bin/python scripts/check_package.py

@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Runs the CI locally before a push, so GitHub minutes go to green runs only.
+# Enabled by scripts/dev.sh (git config core.hooksPath .githooks).
+# Skip once with: git push --no-verify
+set -euo pipefail
+zero=0000000000000000000000000000000000000000
+changed=""
+while read -r _ local_sha _ remote_sha; do
+    [[ "$local_sha" == "$zero" ]] && continue  # deleting a ref
+    if [[ "$remote_sha" == "$zero" ]]; then
+        changed+=$'\n'"(new ref)"  # nothing to compare: check everything
+    else
+        changed+=$'\n'"$(git diff --name-only "$remote_sha" "$local_sha")"
+    fi
+done
+# Same paths ci.yml ignores: text only needs the quick checks.
+code="$(grep -vE '^$|\.md$|^docs/|^examples/api/|^LICENSE$' <<< "$changed" || true)"
+if [[ -z "$code" ]]; then
+    exec bash scripts/check.sh
+fi
+exec bash scripts/ci.sh
