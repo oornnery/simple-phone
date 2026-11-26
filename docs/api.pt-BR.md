@@ -37,6 +37,7 @@ As configurações mais usadas:
 | `speaker`, `record` | Toca o áudio recebido; grava em WAV | desligados |
 | `codec` | `auto`, ou nomes como `PCMA,PCMU,opus` | `auto` |
 | `amd` | Classifica quem atende as chamadas feitas | `True` |
+| `amd_initial_silence_ms`, `amd_greeting_ms`, `amd_after_greeting_silence_ms`, `amd_total_ms`, `amd_voice_rms`, `amd_max_words` | Limites do AMD; veja [docs/cli.pt-BR.md](cli.pt-BR.md#quem-atendeu-amd) | 2500, 1500, 800, 5000, 400, 3 |
 | `srtp`, `ice`, `stun_servers`, `public_address` | Segurança da mídia e NAT | desligados |
 | `prack`, `session_timer` | 100rel e RFC 4028: `off`, `optional`, ... | `off` |
 | `text`, `mwi` | Oferece texto em tempo real; assina o estado da caixa postal | `False` |
@@ -85,7 +86,7 @@ O que uma chamada faz:
 | `mute()`, `gain(microphone, speaker)` | Níveis |
 | `request(method, body)`, `message(text)`, `update()` | INFO, MESSAGE e UPDATE dentro do diálogo |
 | `send_text(text)` | Texto em tempo real (RFC 4103); exige `Settings(text=True)` nos dois lados |
-| `amd(timeout=10)` | Quem atendeu: `human`, `machine`, `voicemail`, `sit`, `silence`, `unsure` |
+| `amd(timeout=10, settle=0, **limits)` | Quem atendeu: `human`, `machine`, `voicemail`, `sit`, `silence`, `unsure`. `settle` continua ouvindo por uma decisão posterior (bipe, SIT, ou voz depois de `silence`). `limits` são campos `amd_*` só para esta chamada |
 | `dump()` | O dump em texto que o PJSUA faz da chamada |
 
 O que uma chamada sabe:
@@ -125,7 +126,7 @@ event = await call.wait_for(Call.Sip, lambda e: e.message.code == 183, timeout=1
 | `Call.Sip` | `message`: `method`, `code`, `headers`, `raw`, `direction` |
 | `Call.Dtmf`, `Call.DtmfSent` | `digit`, `method`; `digits`, `method` |
 | `Call.Stats` | `stats`: `codec`, `rx_packets`, `rx_loss_percent`, `jitter_ms`, `rtt_ms`, `mos` |
-| `Call.Amd` | `amd.result`, `amd.reason` |
+| `Call.Amd` | `amd.result`, `amd.reason`, `amd.leading_silence_ms` |
 | `Call.MediaChanged` | `status`, `held` |
 | `Call.Transaction` | `method`, `code`, `reason` de uma requisição dentro do diálogo |
 | `Call.TransferStatus`, `Call.TransferRequest` | `code`, `reason`, `final`, `success`; `target`, `accepted` |

@@ -74,6 +74,7 @@ simple-phone call 1002 --server pbx --user 1001 --media wav --wav reference.wav 
 | `--speaker` | Toca o áudio recebido nesta máquina | desligado |
 | `--codec` | `auto`, ou nomes como `PCMA,PCMU,opus` | auto |
 | `--no-amd` | Desliga a detecção de secretária eletrônica | ligado |
+| `--amd-initial-silence MS`, `--amd-greeting MS` | Limites do AMD; os outros com `--set amd_<nome>=...` (veja [AMD](#quem-atendeu-amd)) | 2500, 1500 |
 | `--duration` | Segundos conectado (`call`, `answer`) | 15 |
 | `--media-delay` | Segundos de silêncio depois do atendimento antes do `--media` começar (`call`, `answer`) | 0 |
 | `--answer-delay` | Segundos tocando antes de o `answer` atender | 0 |
@@ -173,10 +174,25 @@ Toda chamada feita é classificada enquanto acontece, em três camadas:
 | `machine` | URA ou saudação gravada |
 | `voicemail` | Bipe de caixa postal |
 | `sit` | Anúncio da rede (ex.: número inexistente) |
-| `silence` | Ninguém falou em 2,5 s |
+| `silence` | Ninguém falou em 2,5 s, nem depois na chamada |
 | `unsure` | Sem decisão em 5 s |
 
+`silence` é provisório. Muitas URAs atendem mudas e falam alguns segundos depois: quando uma voz chega depois de `silence`, a camada 2 recomeça a partir dessa primeira voz, com os mesmos limites, e o resultado dela (`machine`, `human` ou `unsure`) vem como uma nova decisão. O motivo então diz isso, por exemplo `greeting longer than 1500ms after 3.0 s of silence`, e `leading_silence_ms` no relatório guarda o silêncio antes da primeira voz. Espere essa segunda decisão com `call.amd(settle=...)`, ou mantenha a chamada com `--duration`.
+
 Os limiares são os padrões do Asterisk e só foram conferidos com áudio sintético. Calibre com gravações do seu tráfego antes de confiar no resultado. Música de espera, ruído e saudações humanas longas confundem a camada 2. Chamadas recebidas não são classificadas.
+
+| Campo | Opção | Padrão | Significado |
+|---|---|---|---|
+| `amd_initial_silence_ms` | `--amd-initial-silence` | 2500 | Ninguém falou por esse tempo: `silence` |
+| `amd_greeting_ms` | `--amd-greeting` | 1500 | Fala mais longa que isso: `machine` |
+| `amd_after_greeting_silence_ms` | `--set` | 800 | Silêncio por esse tempo depois de um alô curto: `human` |
+| `amd_total_ms` | `--set` | 5000 | Sem decisão até lá: `unsure` |
+| `amd_voice_rms` | `--set` | 400 | Quadros abaixo desse nível contam como silêncio |
+| `amd_max_words` | `--set` | 3 | Essa quantidade de palavras seguidas: `machine` |
+
+```bash
+simple-phone call 0800123456 --profile pbx.json --amd-initial-silence 5000   # uma URA que atende muda
+```
 
 ## Áudio no WSL
 

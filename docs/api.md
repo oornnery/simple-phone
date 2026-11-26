@@ -37,6 +37,7 @@ The most used settings:
 | `speaker`, `record` | Play received audio; record it to a WAV | off |
 | `codec` | `auto`, or names such as `PCMA,PCMU,opus` | `auto` |
 | `amd` | Classify who answers outgoing calls | `True` |
+| `amd_initial_silence_ms`, `amd_greeting_ms`, `amd_after_greeting_silence_ms`, `amd_total_ms`, `amd_voice_rms`, `amd_max_words` | AMD limits; see [docs/cli.md](cli.md#who-answered-amd) | 2500, 1500, 800, 5000, 400, 3 |
 | `srtp`, `ice`, `stun_servers`, `public_address` | Media security and NAT | off |
 | `prack`, `session_timer` | 100rel and RFC 4028: `off`, `optional`, ... | `off` |
 | `text`, `mwi` | Offer real-time text; subscribe to voicemail status | `False` |
@@ -85,7 +86,7 @@ What a call can do:
 | `mute()`, `gain(microphone, speaker)` | Levels |
 | `request(method, body)`, `message(text)`, `update()` | In-dialog INFO, MESSAGE, UPDATE |
 | `send_text(text)` | Real-time text (RFC 4103); needs `Settings(text=True)` on both sides |
-| `amd(timeout=10)` | Who answered: `human`, `machine`, `voicemail`, `sit`, `silence`, `unsure` |
+| `amd(timeout=10, settle=0, **limits)` | Who answered: `human`, `machine`, `voicemail`, `sit`, `silence`, `unsure`. `settle` keeps listening for a later decision (a beep, SIT, or a voice after `silence`). `limits` are `amd_*` settings for this call only |
 | `dump()` | PJSUA's text dump of the call |
 
 What a call knows:
@@ -125,7 +126,7 @@ event = await call.wait_for(Call.Sip, lambda e: e.message.code == 183, timeout=1
 | `Call.Sip` | `message`: `method`, `code`, `headers`, `raw`, `direction` |
 | `Call.Dtmf`, `Call.DtmfSent` | `digit`, `method`; `digits`, `method` |
 | `Call.Stats` | `stats`: `codec`, `rx_packets`, `rx_loss_percent`, `jitter_ms`, `rtt_ms`, `mos` |
-| `Call.Amd` | `amd.result`, `amd.reason` |
+| `Call.Amd` | `amd.result`, `amd.reason`, `amd.leading_silence_ms` |
 | `Call.MediaChanged` | `status`, `held` |
 | `Call.Transaction` | `method`, `code`, `reason` of an in-dialog request |
 | `Call.TransferStatus`, `Call.TransferRequest` | `code`, `reason`, `final`, `success`; `target`, `accepted` |

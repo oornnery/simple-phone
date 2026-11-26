@@ -74,6 +74,7 @@ simple-phone call 1002 --server pbx --user 1001 --media wav --wav reference.wav 
 | `--speaker` | Play received audio on this machine | off |
 | `--codec` | `auto`, or names such as `PCMA,PCMU,opus` | auto |
 | `--no-amd` | Skip answering-machine detection | on |
+| `--amd-initial-silence MS`, `--amd-greeting MS` | AMD limits; the others with `--set amd_<name>=...` (see [AMD](#who-answered-amd)) | 2500, 1500 |
 | `--duration` | Seconds connected (`call`, `answer`) | 15 |
 | `--media-delay` | Seconds of silence after the answer before `--media` starts (`call`, `answer`) | 0 |
 | `--answer-delay` | Seconds it rings before `answer` answers | 0 |
@@ -173,10 +174,25 @@ Every outgoing call is classified while it runs, in three layers:
 | `machine` | IVR or recorded greeting |
 | `voicemail` | Voicemail beep |
 | `sit` | Network announcement (e.g. number not in service) |
-| `silence` | Nobody spoke within 2.5 s |
+| `silence` | Nobody spoke within 2.5 s, nor later in the call |
 | `unsure` | No decision within 5 s |
 
+`silence` is provisional. Many IVRs answer mute and speak a few seconds later: when a voice arrives after `silence`, layer 2 starts over from that first voice, with the same limits, and its result (`machine`, `human` or `unsure`) follows as a new decision. The reason then says so, e.g. `greeting longer than 1500ms after 3.0 s of silence`, and `leading_silence_ms` in the report holds the quiet before the first voice. Wait for that second decision with `call.amd(settle=...)`, or keep the call up with `--duration`.
+
 The thresholds are Asterisk's defaults, checked only with synthetic audio. Calibrate them with recordings of your own traffic before you trust the result. Hold music, noise and long human greetings confuse layer 2. Incoming calls are not classified.
+
+| Setting | Option | Default | Meaning |
+|---|---|---|---|
+| `amd_initial_silence_ms` | `--amd-initial-silence` | 2500 | Nobody spoke this long: `silence` |
+| `amd_greeting_ms` | `--amd-greeting` | 1500 | Speech longer than this: `machine` |
+| `amd_after_greeting_silence_ms` | `--set` | 800 | Quiet this long after a short hello: `human` |
+| `amd_total_ms` | `--set` | 5000 | No decision by then: `unsure` |
+| `amd_voice_rms` | `--set` | 400 | Frames below this level count as silence |
+| `amd_max_words` | `--set` | 3 | This many words in a row: `machine` |
+
+```bash
+simple-phone call 0800123456 --profile pbx.json --amd-initial-silence 5000   # an IVR that answers mute
+```
 
 ## Audio on WSL
 
