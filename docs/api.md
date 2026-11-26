@@ -86,7 +86,7 @@ What a call can do:
 | `mute()`, `gain(microphone, speaker)` | Levels |
 | `request(method, body)`, `message(text)`, `update()` | In-dialog INFO, MESSAGE, UPDATE |
 | `send_text(text)` | Real-time text (RFC 4103); needs `Settings(text=True)` on both sides |
-| `amd(timeout=10, settle=0, **limits)` | Who answered: `human`, `machine`, `voicemail`, `sit`, `silence`, `unsure`. `settle` keeps listening for a later decision (a beep, SIT, or a voice after `silence`). `limits` are `amd_*` settings for this call only |
+| `amd(timeout=10, settle=0, transcribe=0, **limits)` | Who answered: `human`, `machine`, `voicemail`, `sit`, `silence`, `unsure`, `ivr`. `settle` keeps listening for a later decision (a beep, SIT, or a voice after `silence`). `transcribe=8` also judges 8 s of words with the phone's STT (off by default: costly). `limits` are `amd_*` settings for this call only |
 | `dump()` | PJSUA's text dump of the call |
 
 What a call knows:

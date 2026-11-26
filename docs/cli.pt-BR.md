@@ -162,18 +162,20 @@ O relatório JSON traz também os eventos SIP e de registro com horário UTC, os
 
 ## Quem atendeu (AMD)
 
-Toda chamada feita é classificada enquanto acontece, em três camadas:
+Toda chamada feita é classificada enquanto acontece, em quatro camadas:
 
 1. **SIP:** Atender em menos de 1 s, sem 18x, indica máquina.
 2. **Padrão de fala**, como o `AMD()` do Asterisk: um "alô?" curto seguido de silêncio é `human`. Fala de mais de 1,5 s, ou 3 palavras seguidas, é `machine` (URA ou saudação de caixa postal).
 3. **Tons** (Goertzel): tons SIT (913,8, 1370,6 e 1776,7 Hz), mesmo em early media, dão `sit`. Um bipe puro depois do atendimento dá `voicemail`.
+4. **SIP com o áudio:** fala em early media (183) seguida de uma falha (4xx-6xx) sem atendimento dá `sit`, com ou sem tons SIT: a rede tocou o erro. O motivo diz isso, por exemplo `3.0 s of early media, then 404 Not Found`.
 
 | Resultado | Significado |
 |---|---|
 | `human` | Saudação curta, depois esperou |
 | `machine` | URA ou saudação gravada |
 | `voicemail` | Bipe de caixa postal |
-| `sit` | Anúncio da rede (ex.: número inexistente) |
+| `sit` | Anúncio da rede (ex.: número inexistente): tons SIT, ou fala em early media antes de uma falha |
+| `ivr` | Um menu de URA ("digite 1"); só pelas palavras, veja abaixo |
 | `silence` | Ninguém falou em 2,5 s, nem depois na chamada |
 | `unsure` | Sem decisão em 5 s |
 
@@ -193,6 +195,8 @@ Os limiares são os padrões do Asterisk e só foram conferidos com áudio sint�
 ```bash
 simple-phone call 0800123456 --profile pbx.json --amd-initial-silence 5000   # uma URA que atende muda
 ```
+
+**Palavras (opcional, só no Python).** Só pelo som não dá para separar uma URA de uma saudação de caixa postal, nem um erro gravado sem tons SIT. `call.amd(transcribe=8)` também transcreve 8 s do outro lado com o STT do telefone (por exemplo `WhisperSTT`) e corrige o veredito pelas palavras: "deixe sua mensagem" / "leave a message" é `voicemail`, "não existe" / "not in service" é `sit`, "digite 1" / "press 1" é `ivr`. Bipe, tons SIT ou anúncio em early media continuam valendo mais. Vem desligado porque STT custa CPU e alguns segundos; a transcrição fica em `amd.raw["transcript"]`.
 
 ## Áudio no WSL
 

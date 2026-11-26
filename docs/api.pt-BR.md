@@ -86,7 +86,7 @@ O que uma chamada faz:
 | `mute()`, `gain(microphone, speaker)` | Níveis |
 | `request(method, body)`, `message(text)`, `update()` | INFO, MESSAGE e UPDATE dentro do diálogo |
 | `send_text(text)` | Texto em tempo real (RFC 4103); exige `Settings(text=True)` nos dois lados |
-| `amd(timeout=10, settle=0, **limits)` | Quem atendeu: `human`, `machine`, `voicemail`, `sit`, `silence`, `unsure`. `settle` continua ouvindo por uma decisão posterior (bipe, SIT, ou voz depois de `silence`). `limits` são campos `amd_*` só para esta chamada |
+| `amd(timeout=10, settle=0, transcribe=0, **limits)` | Quem atendeu: `human`, `machine`, `voicemail`, `sit`, `silence`, `unsure`, `ivr`. `settle` continua ouvindo por uma decisão posterior (bipe, SIT, ou voz depois de `silence`). `transcribe=8` também julga 8 s de palavras com o STT do telefone (desligado por padrão: custa caro). `limits` são campos `amd_*` só para esta chamada |
 | `dump()` | O dump em texto que o PJSUA faz da chamada |
 
 O que uma chamada sabe:

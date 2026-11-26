@@ -162,18 +162,20 @@ The JSON report adds the SIP and registration events with UTC times, the DTMF re
 
 ## Who answered (AMD)
 
-Every outgoing call is classified while it runs, in three layers:
+Every outgoing call is classified while it runs, in four layers:
 
 1. **SIP:** An answer in under 1 s, with no 18x, hints at a machine.
 2. **Speech pattern**, like Asterisk's `AMD()`: a short "hello?" and then silence is `human`. Speech longer than 1.5 s, or 3 words in a row, is `machine` (an IVR or a voicemail greeting).
 3. **Tones** (Goertzel): SIT tones (913.8, 1370.6 and 1776.7 Hz), even in early media, give `sit`. A plain beep after the answer gives `voicemail`.
+4. **SIP with the audio:** speech in early media (183) followed by a failure (4xx-6xx) without an answer gives `sit`, with or without SIT tones: the network played the error. The reason names it, e.g. `3.0 s of early media, then 404 Not Found`.
 
 | Result | Meaning |
 |---|---|
 | `human` | Short greeting, then waited |
 | `machine` | IVR or recorded greeting |
 | `voicemail` | Voicemail beep |
-| `sit` | Network announcement (e.g. number not in service) |
+| `sit` | Network announcement (e.g. number not in service): SIT tones, or speech in early media before a failure |
+| `ivr` | An IVR menu ("press 1"); only from the words, see below |
 | `silence` | Nobody spoke within 2.5 s, nor later in the call |
 | `unsure` | No decision within 5 s |
 
@@ -193,6 +195,8 @@ The thresholds are Asterisk's defaults, checked only with synthetic audio. Calib
 ```bash
 simple-phone call 0800123456 --profile pbx.json --amd-initial-silence 5000   # an IVR that answers mute
 ```
+
+**Words (optional, Python only).** Sound alone cannot tell an IVR from a voicemail greeting, or a recorded error without SIT tones. `call.amd(transcribe=8)` also transcribes 8 s of the far end with the phone's STT (e.g. `WhisperSTT`) and corrects the verdict by its words: "leave a message" / "deixe sua mensagem" is `voicemail`, "not in service" / "não existe" is `sit`, "press 1" / "digite 1" is `ivr`. A beep, SIT tones or an early-media announcement still win. It is off by default because STT costs CPU and a few seconds; the transcript is in `amd.raw["transcript"]`.
 
 ## Audio on WSL
 
