@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.11
+
+- AMD reads SIP with the audio: speech in early media (183) followed by a failure (4xx-6xx) without an answer is `sit`, a network announcement, with or without SIT tones. Ringback tones do not count as speech.
+- Optional, because STT is costly: `call.amd(transcribe=8)` transcribes 8 s of the far end with the phone's STT and corrects the verdict by its words, in Portuguese and English: `voicemail` ("leave a message"), `sit` ("not in service"), and the new result `ivr` ("press 1"). A beep, SIT tones or an announcement still win. The transcript is in `amd.raw["transcript"]`.
+
 ## 0.1.10
 
 - AMD: `silence` is provisional. An IVR that answers mute and speaks seconds later used to stay `silence`; now the voice pattern starts over from the first voice, with the same limits, and its result (`machine`, `human` or `unsure`) follows as a new decision. The reason says so (`greeting longer than 1500ms after 3.0 s of silence`), and the result has `leading_silence_ms`. `machine`, `human`, `unsure` and `sit` stay final.
