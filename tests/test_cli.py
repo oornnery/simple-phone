@@ -66,7 +66,10 @@ class ArgumentsTest(unittest.TestCase):
     def test_a_typo_names_the_typo(self):
         for argv, expected in (
             (["--verion"], "unrecognized arguments: --verion"),
-            (["optins"], "maybe you meant 'options'"),
+            (
+                ["optins"],
+                "meant 'options'" if sys.version_info >= (3, 14) else "invalid choice",
+            ),
             ([], "choose a command"),
         ):
             errors = io.StringIO()

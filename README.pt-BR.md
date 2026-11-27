@@ -6,7 +6,7 @@ Telefone SIP para testar chamadas, como comando e como biblioteca Python. O PJSI
 
 ## Instalar
 
-Linux x86_64, Python 3.14 ou 3.15. A única biblioteca do sistema de que ele precisa é a ALSA, que todo desktop Linux tem.
+Linux x86_64, Python 3.11 a 3.15. Windows e macOS ainda não são suportados. A única biblioteca do sistema de que ele precisa é a ALSA, que todo desktop Linux tem.
 
 ```bash
 pip install simple-phone                  # ou: uv add simple-phone

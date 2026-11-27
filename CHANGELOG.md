@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.12
+
+- Python 3.11, 3.12 and 3.13 are supported, next to 3.14 and 3.15: wheels for cp311 to cp315 on Linux x86_64. The command's typo suggestions need 3.14 and the lazy imports 3.15; older versions run without them.
+- Windows is not supported yet; AGENTS.md lists what a Windows wheel needs.
+
 ## 0.1.11
 
 - AMD reads SIP with the audio: speech in early media (183) followed by a failure (4xx-6xx) without an answer is `sit`, a network announcement, with or without SIT tones. Ringback tones do not count as speech.

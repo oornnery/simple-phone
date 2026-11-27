@@ -295,7 +295,7 @@ class Call(pj.Call):
                 code=tsx.statusCode,
                 reason=tsx.statusText,
             )
-        except AttributeError, pj.Error:
+        except (AttributeError, pj.Error):
             pass
 
     def onInstantMessage(self, prm):

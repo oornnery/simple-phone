@@ -97,7 +97,7 @@ class Account(pj.Account):
                 reason=tsx.statusText,
                 account_id=self.account_id,
             )
-        except AttributeError, pj.Error:
+        except (AttributeError, pj.Error):
             pass
 
     def onInstantMessage(self, prm):

@@ -160,8 +160,9 @@ def parse_args(argv=None):
         prog="simple-phone",
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        suggest_on_error=True,  # 'optins' -> did you mean 'options'?
     )
+    if sys.version_info >= (3, 14):  # 'optins' -> did you mean 'options'?
+        parser.suggest_on_error = True
     parser.add_argument(
         "--version",
         action="version",
