@@ -59,7 +59,7 @@ class Config:
     amd_after_greeting_silence_ms: int = 800  # quiet after a short hello: "human"
     amd_total_ms: int = 5000  # no decision by then: "unsure"
     amd_voice_rms: int = 400  # frames below this level are silence
-    amd_max_words: int = 3  # this many words in a row: "machine"
+    amd_max_words: int = 5  # this many words in a row: "machine" (Asterisk: 3)
     follow_redirects: bool = False  # 3xx: follow the new target, as httpx does
     accept_transfers: bool = True  # REFER received: accept (202) or decline (603)
     prack: str = "off"  # 100rel (RFC 3262): off, optional, mandatory

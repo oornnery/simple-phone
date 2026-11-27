@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- AMD: `amd_max_words` defaults to 5 (was 3, Asterisk's value). A quick "Alô? Quem fala?" counted as 3 words and gave `machine`; IVRs and voicemail are still caught by `amd_greeting_ms`. Set `amd_max_words=3` for the old behavior.
+
 ## 0.1.13
 
 - `--amd-transcribe S` (with `--stt-model`, `--stt-language`) on `call` and `amd`: Whisper transcribes S seconds and the words correct the verdict (`voicemail`, `sit`, `ivr`). The summary shows the latest verdict.

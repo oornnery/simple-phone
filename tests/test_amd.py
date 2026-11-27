@@ -39,10 +39,15 @@ class DetectorTest(unittest.TestCase):
         self.assertIn("greeting", detector.result["reason"])
 
     def test_many_short_words_is_machine(self):
-        words = (noise(0.2) + silence(0.1)) * 4
+        words = (noise(0.2) + silence(0.1)) * 6
         detector = answered()
         self.assertEqual(feed(detector, words), "machine")
-        self.assertEqual(detector.result["words"], 3)
+        self.assertEqual(detector.result["words"], 5)
+
+    def test_a_quick_hello_who_is_it_is_human(self):
+        # "Alo? Quem fala?": four short bursts, then waiting
+        words = (noise(0.15) + silence(0.1)) * 4 + silence(1)
+        self.assertEqual(feed(answered(), words), "human")
 
     def test_nobody_speaks(self):
         self.assertEqual(feed(answered(), silence(3)), "silence")

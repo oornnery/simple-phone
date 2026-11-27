@@ -72,7 +72,7 @@ class Detector:
         total_ms=5000,
         min_word_ms=100,
         between_words_ms=50,
-        max_words=3,
+        max_words=5,
         fast_answer_s=1.0,
         listen_s=30,  # keep looking for tones this long after the answer
     ):

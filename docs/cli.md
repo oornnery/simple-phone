@@ -167,7 +167,7 @@ The JSON report adds the SIP and registration events with UTC times, the DTMF re
 Every outgoing call is classified while it runs, in four layers:
 
 1. **SIP:** An answer in under 1 s, with no 18x, hints at a machine.
-2. **Speech pattern**, like Asterisk's `AMD()`: a short "hello?" and then silence is `human`. Speech longer than 1.5 s, or 3 words in a row, is `machine` (an IVR or a voicemail greeting).
+2. **Speech pattern**, like Asterisk's `AMD()`: a short "hello?" and then silence is `human`. Speech longer than 1.5 s, or 5 words in a row, is `machine` (an IVR or a voicemail greeting).
 3. **Tones** (Goertzel): SIT tones (913.8, 1370.6 and 1776.7 Hz), even in early media, give `sit`. A plain beep after the answer gives `voicemail`.
 4. **SIP with the audio:** speech in early media (183) followed by a failure (4xx-6xx) without an answer gives `sit`, with or without SIT tones: the network played the error. The reason names it, e.g. `3.0 s of early media, then 404 Not Found`.
 
@@ -192,7 +192,7 @@ The thresholds are Asterisk's defaults, checked only with synthetic audio. Calib
 | `amd_after_greeting_silence_ms` | `--set` | 800 | Quiet this long after a short hello: `human` |
 | `amd_total_ms` | `--set` | 5000 | No decision by then: `unsure` |
 | `amd_voice_rms` | `--set` | 400 | Frames below this level count as silence |
-| `amd_max_words` | `--set` | 3 | This many words in a row: `machine` |
+| `amd_max_words` | `--set` | 5 | This many words in a row: `machine` |
 
 ```bash
 simple-phone call 0800123456 --profile pbx.json --amd-initial-silence 5000   # an IVR that answers mute

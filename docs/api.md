@@ -37,7 +37,7 @@ The most used settings:
 | `speaker`, `record` | Play received audio; record it to a WAV | off |
 | `codec` | `auto`, or names such as `PCMA,PCMU,opus` | `auto` |
 | `amd` | Classify who answers outgoing calls | `True` |
-| `amd_initial_silence_ms`, `amd_greeting_ms`, `amd_after_greeting_silence_ms`, `amd_total_ms`, `amd_voice_rms`, `amd_max_words` | AMD limits; see [docs/cli.md](cli.md#who-answered-amd) | 2500, 1500, 800, 5000, 400, 3 |
+| `amd_initial_silence_ms`, `amd_greeting_ms`, `amd_after_greeting_silence_ms`, `amd_total_ms`, `amd_voice_rms`, `amd_max_words` | AMD limits; see [docs/cli.md](cli.md#who-answered-amd) | 2500, 1500, 800, 5000, 400, 5 |
 | `srtp`, `ice`, `stun_servers`, `public_address` | Media security and NAT | off |
 | `prack`, `session_timer` | 100rel and RFC 4028: `off`, `optional`, ... | `off` |
 | `text`, `mwi` | Offer real-time text; subscribe to voicemail status | `False` |

@@ -167,7 +167,7 @@ O relatório JSON traz também os eventos SIP e de registro com horário UTC, os
 Toda chamada feita é classificada enquanto acontece, em quatro camadas:
 
 1. **SIP:** Atender em menos de 1 s, sem 18x, indica máquina.
-2. **Padrão de fala**, como o `AMD()` do Asterisk: um "alô?" curto seguido de silêncio é `human`. Fala de mais de 1,5 s, ou 3 palavras seguidas, é `machine` (URA ou saudação de caixa postal).
+2. **Padrão de fala**, como o `AMD()` do Asterisk: um "alô?" curto seguido de silêncio é `human`. Fala de mais de 1,5 s, ou 5 palavras seguidas, é `machine` (URA ou saudação de caixa postal).
 3. **Tons** (Goertzel): tons SIT (913,8, 1370,6 e 1776,7 Hz), mesmo em early media, dão `sit`. Um bipe puro depois do atendimento dá `voicemail`.
 4. **SIP com o áudio:** fala em early media (183) seguida de uma falha (4xx-6xx) sem atendimento dá `sit`, com ou sem tons SIT: a rede tocou o erro. O motivo diz isso, por exemplo `3.0 s of early media, then 404 Not Found`.
 
@@ -192,7 +192,7 @@ Os limiares são os padrões do Asterisk e só foram conferidos com áudio sint�
 | `amd_after_greeting_silence_ms` | `--set` | 800 | Silêncio por esse tempo depois de um alô curto: `human` |
 | `amd_total_ms` | `--set` | 5000 | Sem decisão até lá: `unsure` |
 | `amd_voice_rms` | `--set` | 400 | Quadros abaixo desse nível contam como silêncio |
-| `amd_max_words` | `--set` | 3 | Essa quantidade de palavras seguidas: `machine` |
+| `amd_max_words` | `--set` | 5 | Essa quantidade de palavras seguidas: `machine` |
 
 ```bash
 simple-phone call 0800123456 --profile pbx.json --amd-initial-silence 5000   # uma URA que atende muda
