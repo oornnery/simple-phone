@@ -9,6 +9,7 @@ simple-phone doctor --server pbx.example.com --user 1001
 simple-phone options pbx.example.com
 simple-phone message 1002 'olá' --server pbx.example.com --user 1001
 simple-phone devices
+simple-phone amd gravacao.wav
 ```
 
 - `call` registra, disca, fica conectado por `--duration` segundos, desliga e mostra um resumo. A chamada termina antes se o outro lado desligar ou se você apertar Ctrl+C.
@@ -16,6 +17,7 @@ simple-phone devices
 - `doctor` confere versões, codecs, dispositivos de áudio, NAT (quando há `stun_servers`), REGISTER e um OPTIONS. Sem `--server`, confere só esta máquina.
 - `options` e `message` enviam uma requisição fora de chamada e mostram a resposta, como o curl: linha de status, headers e corpo. Saem com 0 em qualquer resposta e com 1 quando nenhuma chega. O PJSUA as envia sem credenciais, então um PABX que as desafia responde 401.
 - `devices` lista os dispositivos de áudio.
+- `amd` passa um WAV gravado (16 bits, qualquer taxa) pela detecção de secretária eletrônica, offline, e mostra cada decisão com o motivo. Veja [Quem atendeu](#quem-atendeu-amd).
 
 Um destino é um número (`1002`, que vira `sip:1002@<domínio>`), `usuário@host`, um host (`pbx.example.com`, `host:5060`) ou uma URI `sip:`.
 
@@ -194,6 +196,14 @@ Os limiares são os padrões do Asterisk e só foram conferidos com áudio sint�
 
 ```bash
 simple-phone call 0800123456 --profile pbx.json --amd-initial-silence 5000   # uma URA que atende muda
+```
+
+**Conferir uma gravação.** Grave o que o outro lado envia (`--record entrada.wav`) e passe pelo AMD, offline, com os limites que quiser testar:
+
+```bash
+simple-phone amd entrada.wav
+simple-phone amd entrada.wav --amd-greeting 2500 --amd-max-words 4
+simple-phone amd toque.wav --answered-at 4.2   # o atendimento está em 4,2 s do arquivo
 ```
 
 **Palavras (opcional, só no Python).** Só pelo som não dá para separar uma URA de uma saudação de caixa postal, nem um erro gravado sem tons SIT. `call.amd(transcribe=8)` também transcreve 8 s do outro lado com o STT do telefone (por exemplo `WhisperSTT`) e corrige o veredito pelas palavras: "deixe sua mensagem" / "leave a message" é `voicemail`, "não existe" / "not in service" é `sit`, "digite 1" / "press 1" é `ivr`. Bipe, tons SIT ou anúncio em early media continuam valendo mais. Vem desligado porque STT custa CPU e alguns segundos; a transcrição fica em `amd.raw["transcript"]`.

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- `simple-phone amd FILE.wav` replays a recording through the AMD, offline, and prints each decision with its reason; `--amd-*` options try other limits, `--answered-at` marks the answer.
+
 ## 0.1.12
 
 - Python 3.11, 3.12 and 3.13 are supported, next to 3.14 and 3.15: wheels for cp311 to cp315 on Linux x86_64. The command's typo suggestions need 3.14 and the lazy imports 3.15; older versions run without them.

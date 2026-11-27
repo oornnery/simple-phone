@@ -10,6 +10,7 @@ import unittest
 from pathlib import Path
 
 from simple_phone import Settings, cli
+from simple_phone.media import noise, save_wav, silence
 
 LOCAL = ["--server", "127.0.0.1", "--no-register"]
 
@@ -92,6 +93,23 @@ class ArgumentsTest(unittest.TestCase):
             with self.subTest(path.name):
                 opt = cli.parse_args(["call", "1002", "--profile", str(path)])
                 cli.settings_from(opt)
+
+    def test_amd_judges_a_recording(self):
+        folder = Path(tempfile.mkdtemp())
+        late = save_wav(folder / "late.wav", silence(3) + noise(6))
+        decisions, seconds = cli.judge_wav(late, 0, {})
+        self.assertEqual([d["result"] for d in decisions], ["silence", "machine"])
+        self.assertAlmostEqual(seconds, 9)
+        early = save_wav(folder / "early.wav", noise(2))  # never answered
+        decisions, _ = cli.judge_wav(early, 5, {})
+        self.assertEqual([d["result"] for d in decisions], ["sit"])
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            self.assertEqual(
+                cli.main(["amd", str(late), "--amd-initial-silence", "5000"]), 0
+            )
+        self.assertIn("machine", output.getvalue())
+        self.assertNotIn("silence", output.getvalue())
 
     def test_bad_input(self):
         with self.assertRaises(ValueError):

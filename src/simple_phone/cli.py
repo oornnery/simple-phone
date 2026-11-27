@@ -30,6 +30,7 @@ __lazy_modules__ = [
 ]
 
 import argparse
+import array
 import asyncio
 import contextlib
 import dataclasses
@@ -38,6 +39,7 @@ import json
 import os
 import sys
 import tempfile
+import wave
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -47,6 +49,8 @@ from rich.markup import escape
 from rich.table import Table
 
 from .call import Call
+from .core.amd import LIMITS as AMD_LIMITS
+from .core.amd import Detector
 from .core.config import MEDIA_MODES
 from .core.profiles import load_profile
 from .media import noise, save_wav, tone
@@ -58,6 +62,12 @@ console = Console(highlight=False)
 SETTINGS = {f.name for f in dataclasses.fields(Settings)}
 STATE_STYLE = {"CONFIRMED": "green", "DISCONNECTED": "red", "EARLY": "yellow"}
 # devices, and doctor without a server: the endpoint alone, no network
+# Settings.amd_<name> and its default, for the amd command's --amd-* options
+AMD_DEFAULTS = {
+    f.name.removeprefix("amd_"): f.default
+    for f in dataclasses.fields(Settings)
+    if f.name.removeprefix("amd_") in AMD_LIMITS
+}
 GENERATED = ("tone", "noise")  # --media values the command makes itself
 LOCAL = Settings(server="127.0.0.1", user="local", register=False, log_level=1)
 
@@ -225,6 +235,25 @@ def parse_args(argv=None):
         help="versions, codecs, devices, NAT, REGISTER, OPTIONS",
     )
     commands.add_parser("devices", help="audio devices")
+    amd = commands.add_parser(
+        "amd", help="judge a recorded WAV with the AMD, offline (no SIP)"
+    )
+    amd.add_argument("wav", nargs="+", help="16-bit WAV of what the far end sent")
+    amd.add_argument(
+        "--answered-at",
+        type=float,
+        default=0.0,
+        metavar="S",
+        help="where the answer is in the file; before it is early media (default 0)",
+    )
+    for name, default in AMD_DEFAULTS.items():
+        amd.add_argument(
+            f"--amd-{name.removesuffix('_ms').replace('_', '-')}",
+            dest=f"amd_{name}",
+            type=int,
+            metavar="MS" if name.endswith("_ms") else "N",
+            help=f"default {default}",
+        )
 
     opt = parser.parse_args(argv)
     if opt.command is None:
@@ -557,6 +586,55 @@ def save_json(path, call, error):
     console.print(f"[dim]report saved to {path}[/]")
 
 
+def judge_files(opt):
+    """simple-phone amd: replay WAVs through the AMD and print each decision."""
+    given = {f"amd_{n}": getattr(opt, f"amd_{n}") for n in AMD_DEFAULTS}
+    given = {k: v for k, v in given.items() if v is not None}
+    Settings(server="x", user="x", **given)  # checks the ranges
+    limits = {k.removeprefix("amd_"): v for k, v in given.items()}
+    for path in opt.wav:
+        decisions, seconds = judge_wav(path, opt.answered_at, limits)
+        table = Table("at", "result", "reason", "words", "voice", "quiet first")
+        for d in decisions:
+            table.add_row(
+                f"{d['after_ms'] / 1000 + opt.answered_at:.2f} s",
+                f"[bold]{d['result']}[/]",
+                escape(d["reason"]),
+                str(d["words"]),
+                f"{d['voice_ms']} ms",
+                f"{d['leading_silence_ms']} ms",
+            )
+        console.print(f"[bold]{escape(path)}[/] ({seconds:.1f} s)")
+        console.print(table if decisions else "[yellow]no decision[/]")
+    return 0
+
+
+def judge_wav(path, answered_at, limits):
+    """Every decision the AMD takes on a WAV, and the file's length."""
+    with wave.open(str(path), "rb") as audio:
+        if audio.getsampwidth() != 2:
+            raise ValueError(f"{path}: only 16-bit PCM WAV files")
+        rate, channels = audio.getframerate(), audio.getnchannels()
+        pcm = audio.readframes(audio.getnframes())
+    if channels > 1:  # the first channel
+        pcm = array.array("h", pcm)[::channels].tobytes()
+    detector = Detector(rate, **limits)
+    frame, answer_at = rate // 50 * 2, int(answered_at * rate) * 2
+    decisions, seen = [], 0
+    for i in range(0, len(pcm), frame):
+        if detector.hints is None and i >= answer_at:
+            detector.answered(answered_at, ringing=True, early_media=answered_at > 0)
+        detector.feed(pcm[i : i + frame])
+        if detector.version != seen:
+            seen = detector.version
+            decisions.append(dict(detector.result or {}))
+    if detector.hints is None:  # the file ended before the answer
+        detector.unanswered(487, "Request Terminated")
+        if detector.version != seen:
+            decisions.append(dict(detector.result or {}))
+    return decisions, len(pcm) / 2 / rate
+
+
 async def devices():
     async with AsyncPhone(LOCAL) as phone:
         found = await phone.devices()
@@ -629,6 +707,8 @@ def main(argv=None):
     try:
         if opt.command == "devices":
             return asyncio.run(devices())
+        if opt.command == "amd":
+            return judge_files(opt)
         if opt.command == "doctor" and not (opt.server or opt.profile):
             return asyncio.run(doctor(opt, LOCAL, None, network=False))
         settings, password_env = settings_from(opt)

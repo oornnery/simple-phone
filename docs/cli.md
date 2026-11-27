@@ -9,6 +9,7 @@ simple-phone doctor --server pbx.example.com --user 1001
 simple-phone options pbx.example.com
 simple-phone message 1002 'hello' --server pbx.example.com --user 1001
 simple-phone devices
+simple-phone amd recording.wav
 ```
 
 - `call` registers, dials, stays connected for `--duration` seconds, hangs up and prints a summary. The call ends early if the far end hangs up or you press Ctrl+C.
@@ -16,6 +17,7 @@ simple-phone devices
 - `doctor` checks versions, codecs, audio devices, NAT (when `stun_servers` is set), REGISTER and an OPTIONS ping. Without `--server` it checks only this machine.
 - `options` and `message` send one request outside a call and print the response, like curl: status line, headers and body. They exit with 0 on any response and 1 when none arrives. PJSUA sends them without credentials, so a PBX that challenges them answers 401.
 - `devices` lists audio devices.
+- `amd` replays a recorded WAV (16-bit, any rate) through the answering-machine detection, offline, and prints each decision with its reason. See [Who answered](#who-answered-amd).
 
 A target is a number (`1002`, which becomes `sip:1002@<domain>`), `user@host`, a host (`pbx.example.com`, `host:5060`), or a `sip:` URI.
 
@@ -194,6 +196,14 @@ The thresholds are Asterisk's defaults, checked only with synthetic audio. Calib
 
 ```bash
 simple-phone call 0800123456 --profile pbx.json --amd-initial-silence 5000   # an IVR that answers mute
+```
+
+**Check a recording.** Record what the far end sends (`--record in.wav`) and replay it, offline, with the limits you want to try:
+
+```bash
+simple-phone amd in.wav
+simple-phone amd in.wav --amd-greeting 2500 --amd-max-words 4
+simple-phone amd ring.wav --answered-at 4.2   # the answer is 4.2 s into the file
 ```
 
 **Words (optional, Python only).** Sound alone cannot tell an IVR from a voicemail greeting, or a recorded error without SIT tones. `call.amd(transcribe=8)` also transcribes 8 s of the far end with the phone's STT (e.g. `WhisperSTT`) and corrects the verdict by its words: "leave a message" / "deixe sua mensagem" is `voicemail`, "not in service" / "não existe" is `sit`, "press 1" / "digite 1" is `ivr`. A beep, SIT tones or an early-media announcement still win. It is off by default because STT costs CPU and a few seconds; the transcript is in `amd.raw["transcript"]`.
