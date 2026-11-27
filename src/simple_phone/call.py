@@ -8,11 +8,11 @@ import time
 import wave
 from dataclasses import replace
 
-from .core.amd import words_verdict
+from .core.amd import by_words
 from .core.call import Call as Native
 from .events import CallEvents
 from .media import AudioFrame, Stream, rms, utterances
-from .models import CallFailed, PhoneError, Report, WaitTimeout
+from .models import Amd, CallFailed, PhoneError, Report, WaitTimeout
 
 
 class Trace(list):
@@ -448,15 +448,10 @@ class Call(CallEvents):
     def _amd_by_words(self, amd, text):
         """The sound verdict, corrected by the transcript's words. A beep, a
         SIT or an early-media announcement says more than words do."""
-        raw = {**amd.raw, "transcript": text}
-        verdict = words_verdict(text)
-        if verdict is None or amd.result in ("sit", "voicemail"):
-            return replace(amd, raw=raw)
-        result, phrase = verdict
-        reason = f'"{phrase}" in the transcript'
-        better = replace(
-            amd, result=result, reason=reason, raw=raw | {"result": result}
-        )
+        corrected = by_words(amd.raw, text)
+        if corrected is None:
+            return replace(amd, raw={**amd.raw, "transcript": text})
+        better = Amd.parse(corrected)
         self.emit(self.Amd(amd=better))
         return better
 

@@ -1,6 +1,6 @@
 import unittest
 
-from simple_phone.core.amd import Detector, words_verdict
+from simple_phone.core.amd import Detector, by_words, words_verdict
 from simple_phone.media import noise, silence, tone
 
 FRAME = 320  # bytes in 20 ms at 8 kHz, as PJSIP delivers them
@@ -154,6 +154,14 @@ class WordsTest(unittest.TestCase):
     def test_voicemail_wins_over_not_available(self):
         text = "Não estou disponível agora, deixe seu recado."
         self.assertEqual(words_verdict(text)[0], "voicemail")
+
+    def test_words_correct_the_sound_but_not_tones(self):
+        machine = {"result": "machine", "reason": "3 words", "after_ms": 2960}
+        better = by_words(machine, "Deixe sua mensagem após o sinal.")
+        self.assertEqual((better["result"], better["after_ms"]), ("voicemail", 2960))
+        self.assertIsNone(by_words(machine, "Alô?"))
+        sit = {"result": "sit", "reason": "SIT tones"}
+        self.assertIsNone(by_words(sit, "Digite 1"))
 
     def test_whole_words_only(self):
         self.assertIsNone(words_verdict("Sua impressão foi enviada."))  # not "press"

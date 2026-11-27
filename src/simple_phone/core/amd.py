@@ -328,6 +328,17 @@ PHRASES = (
 )  # fmt: skip
 
 
+def by_words(result, text):
+    """A decision (result dict) corrected by a transcript, or None when the
+    words change nothing. A beep, SIT tones or an announcement say more."""
+    verdict = words_verdict(text)
+    if verdict is None or result.get("result") in ("sit", "voicemail"):
+        return None
+    new, phrase = verdict
+    reason = f'"{phrase}" in the transcript'
+    return {**result, "result": new, "reason": reason, "transcript": text}
+
+
 def words_verdict(text):
     """(result, phrase) for the first known phrase in a transcript, else None."""
     plain = unicodedata.normalize("NFKD", text.lower())

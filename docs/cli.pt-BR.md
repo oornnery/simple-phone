@@ -206,7 +206,14 @@ simple-phone amd entrada.wav --amd-greeting 2500 --amd-max-words 4
 simple-phone amd toque.wav --answered-at 4.2   # o atendimento está em 4,2 s do arquivo
 ```
 
-**Palavras (opcional, só no Python).** Só pelo som não dá para separar uma URA de uma saudação de caixa postal, nem um erro gravado sem tons SIT. `call.amd(transcribe=8)` também transcreve 8 s do outro lado com o STT do telefone (por exemplo `WhisperSTT`) e corrige o veredito pelas palavras: "deixe sua mensagem" / "leave a message" é `voicemail`, "não existe" / "not in service" é `sit`, "digite 1" / "press 1" é `ivr`. Bipe, tons SIT ou anúncio em early media continuam valendo mais. Vem desligado porque STT custa CPU e alguns segundos; a transcrição fica em `amd.raw["transcript"]`.
+**Palavras (opcional).** Só pelo som não dá para separar uma URA de uma saudação de caixa postal, nem um erro gravado sem tons SIT. `call.amd(transcribe=8)` também transcreve 8 s do outro lado com o STT do telefone (por exemplo `WhisperSTT`) e corrige o veredito pelas palavras: "deixe sua mensagem" / "leave a message" é `voicemail`, "não existe" / "not in service" é `sit`, "digite 1" / "press 1" é `ivr`. Bipe, tons SIT ou anúncio em early media continuam valendo mais. Vem desligado porque STT custa CPU e alguns segundos; a transcrição fica em `amd.raw["transcript"]`. Na linha de comando, com `pip install 'simple-phone[stt]'`:
+
+```bash
+simple-phone call 1002 --profile pbx.json --amd-transcribe 6 --stt-language pt
+simple-phone amd entrada.wav --amd-transcribe 6 --stt-language pt   # uma gravação, offline
+```
+
+`--stt-model` escolhe o modelo do Whisper (padrão `base`).
 
 ## Áudio no WSL
 

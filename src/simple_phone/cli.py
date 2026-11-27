@@ -50,10 +50,10 @@ from rich.table import Table
 
 from .call import Call
 from .core.amd import LIMITS as AMD_LIMITS
-from .core.amd import Detector
+from .core.amd import Detector, by_words
 from .core.config import MEDIA_MODES
 from .core.profiles import load_profile
-from .media import noise, save_wav, tone
+from .media import WhisperSTT, noise, save_wav, tone
 from .models import PhoneError, Settings, Timeouts, WaitTimeout
 from .phone import AsyncPhone
 from .version import PJSIP_VERSION, __version__
@@ -166,6 +166,19 @@ def parse_args(argv=None):
     add("--stats", action="store_true", help="RTP counters every second")
     add("-v", "--verbose", action="store_true", help="PJSIP log")
 
+    stt = argparse.ArgumentParser(add_help=False)
+    group = stt.add_argument_group("AMD words (optional: needs simple-phone[stt])")
+    group.add_argument(
+        "--amd-transcribe",
+        type=float,
+        metavar="S",
+        help="transcribe S seconds with Whisper and judge the words (costly)",
+    )
+    group.add_argument(
+        "--stt-model", default="base", help="Whisper model (default base)"
+    )
+    group.add_argument("--stt-language", default="en", help="e.g. pt (default en)")
+
     parser = argparse.ArgumentParser(
         prog="simple-phone",
         description=__doc__,
@@ -181,7 +194,7 @@ def parse_args(argv=None):
     # Not required=True: then a typo such as --verion would be reported as a
     # missing command instead of an unknown option.
     commands = parser.add_subparsers(dest="command", metavar="command")
-    call = commands.add_parser("call", parents=[common], help="dial and report")
+    call = commands.add_parser("call", parents=[common, stt], help="dial and report")
     options = commands.add_parser(
         "options", parents=[common], help="send OPTIONS, print the response"
     )
@@ -236,7 +249,7 @@ def parse_args(argv=None):
     )
     commands.add_parser("devices", help="audio devices")
     amd = commands.add_parser(
-        "amd", help="judge a recorded WAV with the AMD, offline (no SIP)"
+        "amd", parents=[stt], help="judge a recorded WAV with the AMD, offline (no SIP)"
     )
     amd.add_argument("wav", nargs="+", help="16-bit WAV of what the far end sent")
     amd.add_argument(
@@ -376,9 +389,12 @@ async def one_call(opt, settings, password):
     timeouts = Timeouts(register=opt.timeout, setup=opt.timeout)
     # --media-delay: answer with silence; talk() sends the media later
     first = "silent" if opt.media_delay else settings.media
-    phone = AsyncPhone(settings, password=password, timeouts=timeouts, media=first)
+    stt = await load_stt(opt)
+    phone = AsyncPhone(
+        settings, password=password, timeouts=timeouts, media=first, stt=stt
+    )
     show(phone, opt)
-    call, error = None, None
+    call, error, words = None, None, None
     async with phone:
         try:
             if opt.command == "answer":
@@ -393,6 +409,8 @@ async def one_call(opt, settings, password):
                 call = await phone.dial(target, headers=headers_from(opt))
                 console.print(f"[bold]Calling[/] {call.destination}")
             await call.answered(timeout=timeouts.setup)
+            if stt is not None:  # prints its Call.Amd through show()
+                words = asyncio.ensure_future(amd_with_words(call, opt))
             await talk(call, opt, settings)
         except asyncio.CancelledError:  # Ctrl+C: hang up and still report
             if task := asyncio.current_task():
@@ -400,10 +418,29 @@ async def one_call(opt, settings, password):
             error = KeyboardInterrupt()
         except PhoneError as exc:
             error = exc
+        if words is not None and not words.done():
+            words.cancel()  # the call ended before the transcript
         if call is not None:
             with contextlib.suppress(PhoneError):
                 await call.hangup()
     return call, error
+
+
+async def load_stt(opt):
+    """WhisperSTT for --amd-transcribe, loaded before the call; or None."""
+    if not getattr(opt, "amd_transcribe", None):
+        return None
+    stt = WhisperSTT(opt.stt_model, language=opt.stt_language)
+    try:
+        await stt.load()
+    except RuntimeError as exc:  # faster-whisper missing, model not found...
+        raise PhoneError(str(exc)) from exc
+    return stt
+
+
+async def amd_with_words(call, opt):
+    with contextlib.suppress(PhoneError):
+        await call.amd(timeout=opt.duration, transcribe=opt.amd_transcribe)
 
 
 async def talk(call, opt, settings):
@@ -539,8 +576,10 @@ def report_rows(table, call, report):
     table.add_row("call-id", str(report.raw.get("call_id")))
     table.add_row("answer time", f"{report.answer_time_seconds} s")
     table.add_row("connected", f"{report.connected_seconds} s")
-    if report.amd:
-        table.add_row("AMD", f"{report.amd.result} ({report.amd.reason})")
+    verdicts = [e.amd for e in call.timeline if isinstance(e, Call.Amd)]
+    amd = verdicts[-1] if verdicts else report.amd  # the words come last
+    if amd:
+        table.add_row("AMD", f"{amd.result} ({escape(amd.reason)})")
     if call.dtmf_received:
         table.add_row("DTMF ←", call.dtmf_received)
 
@@ -592,8 +631,11 @@ def judge_files(opt):
     given = {k: v for k, v in given.items() if v is not None}
     Settings(server="x", user="x", **given)  # checks the ranges
     limits = {k.removeprefix("amd_"): v for k, v in given.items()}
+    stt = asyncio.run(load_stt(opt))
     for path in opt.wav:
         decisions, seconds = judge_wav(path, opt.answered_at, limits)
+        if stt is not None:
+            decisions += judge_words(stt, path, opt, decisions)
         table = Table("at", "result", "reason", "words", "voice", "quiet first")
         for d in decisions:
             table.add_row(
@@ -607,6 +649,25 @@ def judge_files(opt):
         console.print(f"[bold]{escape(path)}[/] ({seconds:.1f} s)")
         console.print(table if decisions else "[yellow]no decision[/]")
     return 0
+
+
+def judge_words(stt, path, opt, decisions):
+    """The decision the transcript's words add, if any (a list of 0 or 1)."""
+    text = asyncio.run(transcribe_wav(stt, path, opt))
+    console.print(f"[dim]transcript:[/] {escape(text) or '(nothing)'}")
+    better = by_words(decisions[-1], text) if decisions else None
+    return [better] if better else []
+
+
+async def transcribe_wav(stt, path, opt):
+    """--amd-transcribe seconds of the file, from the answer, as text."""
+    with wave.open(str(path), "rb") as audio:
+        rate, channels = audio.getframerate(), audio.getnchannels()
+        audio.setpos(min(int(opt.answered_at * rate), audio.getnframes()))
+        pcm = audio.readframes(int(opt.amd_transcribe * rate))
+    if channels > 1:
+        pcm = array.array("h", pcm)[::channels].tobytes()
+    return (await stt.transcribe(pcm, rate)).strip() if pcm else ""
 
 
 def judge_wav(path, answered_at, limits):

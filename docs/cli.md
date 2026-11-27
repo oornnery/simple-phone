@@ -206,7 +206,14 @@ simple-phone amd in.wav --amd-greeting 2500 --amd-max-words 4
 simple-phone amd ring.wav --answered-at 4.2   # the answer is 4.2 s into the file
 ```
 
-**Words (optional, Python only).** Sound alone cannot tell an IVR from a voicemail greeting, or a recorded error without SIT tones. `call.amd(transcribe=8)` also transcribes 8 s of the far end with the phone's STT (e.g. `WhisperSTT`) and corrects the verdict by its words: "leave a message" / "deixe sua mensagem" is `voicemail`, "not in service" / "não existe" is `sit`, "press 1" / "digite 1" is `ivr`. A beep, SIT tones or an early-media announcement still win. It is off by default because STT costs CPU and a few seconds; the transcript is in `amd.raw["transcript"]`.
+**Words (optional).** Sound alone cannot tell an IVR from a voicemail greeting, or a recorded error without SIT tones. `call.amd(transcribe=8)` also transcribes 8 s of the far end with the phone's STT (e.g. `WhisperSTT`) and corrects the verdict by its words: "leave a message" / "deixe sua mensagem" is `voicemail`, "not in service" / "não existe" is `sit`, "press 1" / "digite 1" is `ivr`. A beep, SIT tones or an early-media announcement still win. It is off by default because STT costs CPU and a few seconds; the transcript is in `amd.raw["transcript"]`. On the command line, with `pip install 'simple-phone[stt]'`:
+
+```bash
+simple-phone call 1002 --profile pbx.json --amd-transcribe 6 --stt-language pt
+simple-phone amd in.wav --amd-transcribe 6 --stt-language pt   # a recording, offline
+```
+
+`--stt-model` picks the Whisper model (default `base`).
 
 ## Audio on WSL
 

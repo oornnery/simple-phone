@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `--amd-transcribe S` (with `--stt-model`, `--stt-language`) on `call` and `amd`: Whisper transcribes S seconds and the words correct the verdict (`voicemail`, `sit`, `ivr`). The summary shows the latest verdict.
 - `simple-phone amd FILE.wav` replays a recording through the AMD, offline, and prints each decision with its reason; `--amd-*` options try other limits, `--answered-at` marks the answer.
 
 ## 0.1.12
