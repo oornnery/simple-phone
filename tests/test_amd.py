@@ -39,10 +39,10 @@ class DetectorTest(unittest.TestCase):
         self.assertIn("greeting", detector.result["reason"])
 
     def test_many_short_words_is_machine(self):
-        words = (noise(0.2) + silence(0.1)) * 6
+        words = (noise(0.2) + silence(0.1)) * 7
         detector = answered()
         self.assertEqual(feed(detector, words), "machine")
-        self.assertEqual(detector.result["words"], 5)
+        self.assertEqual(detector.result["words"], 6)
 
     def test_a_quick_hello_who_is_it_is_human(self):
         # "Alo? Quem fala?": four short bursts, then waiting
@@ -61,8 +61,21 @@ class DetectorTest(unittest.TestCase):
         self.assertTrue(detector.done)
 
     def test_beep_after_greeting_is_voicemail(self):
-        audio = noise(2) + silence(0.5) + tone(1000, 0.5) + silence(0.3)
+        audio = noise(2.5) + silence(0.5) + tone(1000, 0.5) + silence(1.2)
         self.assertEqual(feed(answered(), audio), "voicemail")
+
+    def test_busy_tone_after_a_person_is_not_a_beep(self):
+        # 425 Hz, 250 ms on and off: the far end hung up, no voicemail
+        busy = (tone(425, 0.25) + silence(0.25)) * 6
+        detector = answered()
+        self.assertEqual(
+            decisions(detector, noise(0.6) + silence(1.5) + busy), ["human"]
+        )
+
+    def test_a_long_hello_then_waiting_is_human(self):
+        # "Alo, boa tarde, quem fala?": about 1.8 s with short gaps, then a pause
+        hello = (noise(0.35) + silence(0.08)) * 5 + silence(2)
+        self.assertEqual(feed(answered(), hello), "human")
 
     def test_ringback_before_answer_is_not_a_beep(self):
         detector = Detector()

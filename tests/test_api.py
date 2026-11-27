@@ -94,7 +94,9 @@ class ApiTest(unittest.IsolatedAsyncioTestCase):
     async def test_amd_limits_for_one_call(self):
         await self.answer_mute_then_speak()
         async with self.phone.call(self.other.uri) as call:
-            amd = await call.amd(timeout=10, amd_initial_silence_ms=5000)
+            amd = await call.amd(
+                timeout=10, amd_initial_silence_ms=5000, amd_total_ms=8000
+            )
         self.assertEqual(amd.result, "machine", amd.reason)  # no "silence" first
         with self.assertRaises(ValueError):
             async with self.phone.call(self.other.uri) as call:

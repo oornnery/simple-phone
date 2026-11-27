@@ -151,7 +151,7 @@ def parse_args(argv=None):
         dest="amd_greeting_ms",
         type=int,
         metavar="MS",
-        help="AMD: speech longer than this means machine (default 1500)",
+        help="AMD: speech longer than this means machine (default 2000)",
     )
 
     group = common.add_argument_group("output")

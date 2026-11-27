@@ -37,7 +37,7 @@ As configurações mais usadas:
 | `speaker`, `record` | Toca o áudio recebido; grava em WAV | desligados |
 | `codec` | `auto`, ou nomes como `PCMA,PCMU,opus` | `auto` |
 | `amd` | Classifica quem atende as chamadas feitas | `True` |
-| `amd_initial_silence_ms`, `amd_greeting_ms`, `amd_after_greeting_silence_ms`, `amd_total_ms`, `amd_voice_rms`, `amd_max_words` | Limites do AMD; veja [docs/cli.pt-BR.md](cli.pt-BR.md#quem-atendeu-amd) | 2500, 1500, 800, 5000, 400, 5 |
+| `amd_initial_silence_ms`, `amd_greeting_ms`, `amd_after_greeting_silence_ms`, `amd_total_ms`, `amd_voice_rms`, `amd_max_words` | Limites do AMD; veja [docs/cli.pt-BR.md](cli.pt-BR.md#quem-atendeu-amd) | 2500, 2000, 800, 5000, 400, 6 |
 | `srtp`, `ice`, `stun_servers`, `public_address` | Segurança da mídia e NAT | desligados |
 | `prack`, `session_timer` | 100rel e RFC 4028: `off`, `optional`, ... | `off` |
 | `text`, `mwi` | Oferece texto em tempo real; assina o estado da caixa postal | `False` |

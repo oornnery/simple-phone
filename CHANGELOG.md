@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-- AMD: `amd_max_words` defaults to 5 (was 3, Asterisk's value). A quick "Alô? Quem fala?" counted as 3 words and gave `machine`; IVRs and voicemail are still caught by `amd_greeting_ms`. Set `amd_max_words=3` for the old behavior.
+- AMD defaults fit longer greetings: `amd_greeting_ms` 2000 (was 1500) and `amd_max_words` 6 (was 3). Real calls where a person said "Alô, boa tarde, quem fala?" came out `machine`; with these values they are `human`, and IVRs and voicemail greetings are still `machine`. Asterisk's values: `amd_greeting_ms=1500`, `amd_max_words=3`.
+- AMD: a beep counts as voicemail only when it sounds alone. A busy tone after the far end hung up (425 Hz, 250 ms on and off) was taken for a beep.
 
 ## 0.1.13
 

@@ -55,11 +55,11 @@ class Config:
     amd: bool = True  # classify outgoing calls: human, IVR, announcement
     # AMD limits (Asterisk's defaults); voice counts from the first voice
     amd_initial_silence_ms: int = 2500  # nobody spoke this long: "silence"
-    amd_greeting_ms: int = 1500  # speech longer than this: "machine"
+    amd_greeting_ms: int = 2000  # speech longer than this: "machine" (Asterisk: 1500)
     amd_after_greeting_silence_ms: int = 800  # quiet after a short hello: "human"
     amd_total_ms: int = 5000  # no decision by then: "unsure"
     amd_voice_rms: int = 400  # frames below this level are silence
-    amd_max_words: int = 5  # this many words in a row: "machine" (Asterisk: 3)
+    amd_max_words: int = 6  # this many words in a row: "machine" (Asterisk: 3)
     follow_redirects: bool = False  # 3xx: follow the new target, as httpx does
     accept_transfers: bool = True  # REFER received: accept (202) or decline (603)
     prack: str = "off"  # 100rel (RFC 3262): off, optional, mandatory

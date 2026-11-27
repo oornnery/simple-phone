@@ -31,6 +31,9 @@ import unicodedata
 
 RESULTS = ("human", "machine", "voicemail", "sit", "silence", "unsure", "ivr")
 ANNOUNCEMENT_MS = 1000  # speech in early media before a failure: an announcement
+# A voicemail beep sounds once. The same tone again within this time is a
+# call-progress cadence (busy: 425 Hz, 250 ms on, 250 ms off), not a beep.
+BEEP_ALONE_MS = 1000
 # Detector limits that Settings exposes as amd_<name>; defaults from Asterisk.
 LIMITS = (
     "initial_silence_ms",
@@ -67,12 +70,12 @@ class Detector:
         rate=8000,
         voice_rms=400,  # about -38 dBFS: below it a frame is silence
         initial_silence_ms=2500,
-        greeting_ms=1500,
+        greeting_ms=2000,
         after_greeting_silence_ms=800,
         total_ms=5000,
         min_word_ms=100,
         between_words_ms=50,
-        max_words=5,
+        max_words=6,
         fast_answer_s=1.0,
         listen_s=30,  # keep looking for tones this long after the answer
     ):
@@ -105,6 +108,7 @@ class Detector:
         self.answer_clock = None
         self.early_sound_ms = 0  # audio above voice_rms before the answer
         self.early_tone_ms = 0  # of which pure tones (ringback, SIT)
+        self.beep = None  # (freq, length, end) of a beep not yet known to be alone
 
     def configure(self, **limits):
         """New limits (names from LIMITS) for the decisions still to come."""
@@ -137,6 +141,7 @@ class Detector:
         energy = sum(x * x for x in samples) / n
         self.clock += frame_ms
         self._tones(samples, energy, frame_ms)
+        self._settle_beep()
         if self.hints is None:  # before the answer: tones, and sound for unanswered()
             if energy >= self.voice_energy:
                 self.early_sound_ms += frame_ms
@@ -145,6 +150,7 @@ class Detector:
         self._watch_voice(energy >= self.voice_energy, frame_ms)
         if self.elapsed >= self.listen_ms:
             self._close_tone()
+            self._settle_beep(final=True)
             self.done = True
 
     # -- layer 2: voice pattern --
@@ -276,6 +282,19 @@ class Detector:
         maybe_sit = sit_group(freq) is not None and length <= 450
         answered = self.answer_clock is not None and start >= self.answer_clock
         if answered and not maybe_sit and 200 <= length <= 2000:
+            same = self.beep is not None and abs(self.beep[0] - freq) <= 40
+            self.beep = None if same else (freq, length, self.clock)  # cadence: no beep
+
+    def _settle_beep(self, final=False):
+        """Publish a beep once it proved to be alone (not a busy cadence)."""
+        if self.beep is None:
+            return
+        freq, length, end = self.beep
+        if self.tone is not None and abs(self.tone[0] - freq) <= 40:
+            self.beep = None  # the same tone again: a call-progress cadence
+            return
+        if final or self.clock - end >= BEEP_ALONE_MS:
+            self.beep = None
             if (self.result or {}).get("result") != "sit":
                 self._publish("voicemail", f"beep {round(freq)} Hz, {round(length)}ms")
 
