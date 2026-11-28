@@ -84,7 +84,7 @@ def check_wheel(path, version):
         ):
             raise ValueError(f"{path}: simple-phone command missing")
         expected = {
-            str(p.relative_to(SOURCE))
+            p.relative_to(SOURCE).as_posix()  # wheel paths use /, also on Windows
             for p in (SOURCE / "simple_phone").rglob("*.py")
             if "__pycache__" not in p.parts
         }
