@@ -4,7 +4,9 @@
 
 - Windows x64 wheels, Python 3.11 to 3.15. PJSIP is built with MSBuild (`scripts/build_pjsip.ps1`); audio through Windows' sound devices. Built-in codecs only (no opus), no TLS.
 - Fixed: the presence note (`Phone.Presence.note`) could come out empty; it was read from a freed `BuddyInfo`.
+- Fixed: on a Windows console or pipe in cp1252, the command crashed with `UnicodeEncodeError` on characters such as `→`; it now prints `?` in their place.
 - `release.yml` can run by hand (`workflow_dispatch`) to build and test the wheels without publishing.
+- Windows-only failures show up before a release: `check.sh` runs `ty` with `--python-platform win32` and the CLI tests in a cp1252 pipe, and `scripts/ci-windows.sh` builds the Windows wheel from WSL and runs its tests on Windows.
 
 ## 0.1.14
 
