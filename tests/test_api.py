@@ -358,8 +358,10 @@ class ApiTest(unittest.IsolatedAsyncioTestCase):
         await self.phone.set_presence(True)
         await until(lambda: presence[-1].online)
         await self.phone.set_presence(False, "in a meeting")
-        await until(lambda: presence[-1].online is False)
-        self.assertEqual(presence[-1].note, "in a meeting")
+        await until(
+            lambda: presence[-1].note == "in a meeting"
+        )  # may follow a bare offline
+        self.assertIs(presence[-1].online, False)
         await self.other.unsubscribe(self.phone.uri)
 
         typing = collect(self.other, AsyncPhone.Typing)

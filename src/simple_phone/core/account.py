@@ -20,7 +20,8 @@ class Buddy(pj.Buddy):
         self.create(account, config)
 
     def onBuddyState(self):
-        status = self.getInfo().presStatus
+        info = self.getInfo()  # presStatus points into it: keep it alive
+        status = info.presStatus
         self.account.endpoint.emit(
             P.Presence,
             uri=self.uri,
