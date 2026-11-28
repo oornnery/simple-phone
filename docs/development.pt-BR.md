@@ -54,6 +54,17 @@ O binding é o `pjsua2.i` do PJSIP mais o `packaging/pjsua2_extra.i`, que acresc
 
 Só wheels são distribuídos. Um build a partir do fonte precisa rodar `scripts/build_pjsip.sh` antes, e um sdist comum não consegue. Gere sempre com `--wheel`; o `build.sh` já faz isso.
 
+## Windows
+
+Visual Studio 2022 Build Tools com o workload de C++, git, uv e SWIG (`uv tool install swig`). No PowerShell:
+
+```powershell
+pwsh scripts/build_pjsip.ps1          # PJSIP (MSBuild, Release-Dynamic) e o wrapper SWIG
+uv build --wheel                      # o setup.py liga as .lib de build\pjproject
+```
+
+`PJSIP_SRC` aponta para outro checkout do PJPROJECT, `SWIG` para outro swig.exe. O build de Windows tem só os codecs embutidos do PJSIP (sem opus) e não tem TLS.
+
 ## CI
 
 O `.github/workflows/ci.yml` roda em pushes para `main` e em pull requests, num job só:

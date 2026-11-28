@@ -215,6 +215,7 @@ pcm.nulldev { type null hint { show on description "Null device" } }
 """
 
 
+@unittest.skipUnless(sys.platform == "linux", "ALSA null devices")
 class SoundCardTest(unittest.TestCase):
     """mic, speaker and device ids, on ALSA null devices (no hardware)."""
 

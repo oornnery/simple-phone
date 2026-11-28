@@ -4,7 +4,7 @@ Notes for coding agents (and people) working in this repository.
 
 ## What this is
 
-`simple-phone`: a SIP test phone. The Python package bundles PJSUA2 (PJSIP 2.17), compiled into the wheel, and adds an async API (`AsyncPhone`, `Call`, typed events) and a command (`simple-phone`). It targets Linux x86_64 and Python 3.11 to 3.15 only. Keep the code valid on 3.11: ruff targets py311, and newer APIs need a version check. The license is GPL-2.0-or-later, because PJSIP is linked in.
+`simple-phone`: a SIP test phone. The Python package bundles PJSUA2 (PJSIP 2.17), compiled into the wheel, and adds an async API (`AsyncPhone`, `Call`, typed events) and a command (`simple-phone`). It targets Linux x86_64 and Windows x64, Python 3.11 to 3.15. Keep the code valid on 3.11: ruff targets py311, and newer APIs need a version check. The license is GPL-2.0-or-later, because PJSIP is linked in.
 
 Read [docs/architecture.md](docs/architecture.md) before changing anything under `src/simple_phone/core/`. The public API is described in [docs/api.md](docs/api.md) and the command in [docs/cli.md](docs/cli.md); update them, and their `.pt-BR.md` copies, with the code.
 
@@ -54,11 +54,10 @@ Run Python with `.venv/bin/python`, not `uv run`. `uv run` may rebuild the nativ
 - A REGISTER 401 or 407 that reaches `onRegState` is final. PJSUA answers the challenge itself.
 - SWIG returns a field whose C type it does not know (e.g. `AudioDevInfo.id`, a `pjmedia_aud_dev_index`) as an opaque pointer. Read only fields that come back as Python values. CI has no sound card: `tests/test_cli.py` runs the audio-device paths on ALSA null devices.
 
-## TODO: Windows
+## Windows
 
-Not started. What a Windows wheel needs:
+`scripts/build_pjsip.ps1` builds PJSIP with MSBuild (`Release-Dynamic`: /MD, like Python) and the SWIG wrapper; `setup.py` links the `.lib` files from `PJSIP_SRC` (default `build\pjproject`). cibuildwheel does it on `windows-2022` in `release.yml`.
 
-1. Build PJSIP with MSVC (the pjproject Visual Studio solution) using `packaging/config_site.h`; audio through WASAPI/WMME instead of ALSA.
-2. `setup.py`: link the Windows `.lib` files instead of the static Unix archives.
-3. Linux-only code: `quiet_stdout()` in `core/endpoint.py` uses libc; the scripts are bash; the sound-card tests use ALSA null devices.
-4. CI: cibuildwheel on `windows-latest` in `release.yml`, with the same tests.
+- Codecs: only PJSIP's built-in ones (no opus). No TLS.
+- The tests run as on Linux; the ALSA sound-card tests are skipped.
+- WSL with `networkingMode=mirrored` makes Windows refuse UDP ports from 46000 up: tests that use them fail on such a host, not on CI.

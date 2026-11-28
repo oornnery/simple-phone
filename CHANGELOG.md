@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Windows x64 wheels, Python 3.11 to 3.15. PJSIP is built with MSBuild (`scripts/build_pjsip.ps1`); audio through Windows' sound devices. Built-in codecs only (no opus), no TLS.
+- Fixed: the presence note (`Phone.Presence.note`) could come out empty; it was read from a freed `BuddyInfo`.
+- `release.yml` can run by hand (`workflow_dispatch`) to build and test the wheels without publishing.
+
 ## 0.1.14
 
 - AMD defaults fit longer greetings: `amd_greeting_ms` 2000 (was 1500) and `amd_max_words` 6 (was 3). Real calls where a person said "Alô, boa tarde, quem fala?" came out `machine`; with these values they are `human`, and IVRs and voicemail greetings are still `machine`. Asterisk's values: `amd_greeting_ms=1500`, `amd_max_words=3`.

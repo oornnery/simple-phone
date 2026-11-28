@@ -59,7 +59,8 @@ def check_wheel(path, version):
         if required - names:
             raise ValueError(f"{path}: missing {sorted(required - names)}")
         if not any(
-            n.startswith("simple_phone/_native/_pjsua2.") and n.endswith(".so")
+            n.startswith("simple_phone/_native/_pjsua2.")
+            and n.endswith((".so", ".pyd"))
             for n in names
         ):
             raise ValueError(f"{path}: native extension missing")

@@ -7,6 +7,7 @@ import ctypes
 import gc
 import os
 import re
+import sys
 import time
 from dataclasses import replace
 
@@ -27,7 +28,8 @@ DEFAULT_CAPTURE, DEFAULT_PLAYBACK = -1, -2
 def quiet_stdout():
     """Drop what C code writes to stdout: libCreate() prints pjlib's start-up
     log there, before the LogWriter is installed by libInit()."""
-    libc = ctypes.CDLL(None)
+    # Windows: the C runtime PJSIP links against (/MD) is the UCRT
+    libc = ctypes.cdll.ucrtbase if sys.platform == "win32" else ctypes.CDLL(None)
     libc.fflush(None)
     saved, devnull = os.dup(1), os.open(os.devnull, os.O_WRONLY)
     os.dup2(devnull, 1)

@@ -6,7 +6,7 @@ A SIP phone for testing calls, as a command and as a Python library. PJSIP 2.17 
 
 ## Install
 
-Linux x86_64, Python 3.11 to 3.15. Windows and macOS are not supported yet. The only system library it needs is ALSA, which every Linux desktop has.
+Linux x86_64 and Windows x64, Python 3.11 to 3.15. macOS is not supported yet. The only system library it needs is ALSA, which every Linux desktop has.
 
 ```bash
 pip install simple-phone                  # or: uv add simple-phone

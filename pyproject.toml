@@ -13,6 +13,7 @@ dependencies = ["rich>=14"]
 license = "GPL-2.0-or-later"
 classifiers = [
     "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -79,7 +80,7 @@ environment = { PJSIP_PREFIX = "/opt/pjsip" }
 test-sources = ["tests"]
 test-command = [
     "python -c \"import simple_phone; print(simple_phone.__version__)\"",
-    "python -m unittest discover -s tests -p 'test_*.py' -v",
+    "python -m unittest discover -s tests -p \"test_*.py\" -v",  # cmd on Windows: no single quotes
     "python tests/native_checks.py -v",
 ]
 
@@ -91,3 +92,8 @@ before-all = "yum install -y alsa-lib-devel && pipx install swig && bash scripts
 # libasound stays a system library, so the user's ALSA plugins and
 # configuration (PulseAudio, PipeWire, WSLg) keep working.
 repair-wheel-command = "auditwheel repair --exclude libasound.so.2 -w {dest_dir} {wheel}"
+
+[tool.cibuildwheel.windows]
+archs = ["AMD64"]
+# Once: SWIG, then PJSIP with MSBuild and the wrapper (scripts/build_pjsip.ps1).
+before-all = "pip install swig && pwsh -NoProfile -File scripts/build_pjsip.ps1"
