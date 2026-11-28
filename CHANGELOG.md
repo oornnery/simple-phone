@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.15
 
 - Windows x64 wheels, Python 3.11 to 3.15. PJSIP is built with MSBuild (`scripts/build_pjsip.ps1`); audio through Windows' sound devices. Built-in codecs only (no opus), no TLS.
 - Fixed: the presence note (`Phone.Presence.note`) could come out empty; it was read from a freed `BuddyInfo`.
