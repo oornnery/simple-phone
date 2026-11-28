@@ -156,7 +156,7 @@ class CommandsTest(unittest.TestCase):
             self.assertTrue(json.loads(report.read_text())["answered"])
         output, _ = answer.communicate(timeout=20)
         self.assertEqual(answer.returncode, 0, output)
-        self.assertIn("DTMF ← 7", output)
+        self.assertRegex(output, r"DTMF \S 7")  # "←", or "?" in a cp1252 pipe
 
     def test_call_and_answer_without_an_account(self):
         answer = subprocess.Popen(
