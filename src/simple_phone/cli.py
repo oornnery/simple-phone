@@ -35,6 +35,7 @@ import asyncio
 import contextlib
 import dataclasses
 import getpass
+import io
 import json
 import os
 import sys
@@ -764,6 +765,11 @@ async def options_check(phone, target, timeout):
 
 
 def main(argv=None):
+    # A Windows pipe or legacy console is cp1252: print "?" for an arrow or a
+    # check mark instead of failing with UnicodeEncodeError.
+    for stream in (sys.stdout, sys.stderr):
+        if isinstance(stream, io.TextIOWrapper):
+            stream.reconfigure(errors="replace")
     opt = parse_args(argv)
     try:
         if opt.command == "devices":

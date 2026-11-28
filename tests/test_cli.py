@@ -123,6 +123,16 @@ class ArgumentsTest(unittest.TestCase):
 
 
 class CommandsTest(unittest.TestCase):
+    def test_a_cp1252_console_does_not_crash(self):
+        # Windows pipes: no arrows or check marks in that encoding
+        env = {**os.environ, "PYTHONIOENCODING": "cp1252"}
+        done = subprocess.run(
+            [sys.executable, "-m", "simple_phone.cli", "doctor"],
+            env=env, capture_output=True, text=True, encoding="cp1252", timeout=60,
+        )  # fmt: skip
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertNotIn("UnicodeEncodeError", done.stderr)
+
     def test_doctor_without_a_server(self):
         self.assertEqual(cli.main(["doctor"]), 0)
 
