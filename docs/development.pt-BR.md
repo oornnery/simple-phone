@@ -63,6 +63,8 @@ pwsh scripts/build_pjsip.ps1          # PJSIP (MSBuild, Release-Dynamic) e o wra
 uv build --wheel                      # o setup.py liga as .lib de build\pjproject
 ```
 
+Pelo WSL, `bash scripts/ci-windows.sh` copia o checkout para `C:\sp\simple-phone` (`WIN_DIR`) e roda lá o `scripts\ci-windows.bat`: PJSIP, wheel, a conferência dele, os testes PJSUA2 e unitários, os mesmos passos da publicação. No Linux, o `check.sh` também confere os tipos para Windows e roda os testes do comando em cp1252, a codificação de um pipe do Windows.
+
 `PJSIP_SRC` aponta para outro checkout do PJPROJECT, `SWIG` para outro swig.exe. O build de Windows tem só os codecs embutidos do PJSIP (sem opus) e não tem TLS.
 
 ## CI

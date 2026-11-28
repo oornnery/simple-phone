@@ -141,7 +141,7 @@ class CommandsTest(unittest.TestCase):
             [sys.executable, "-m", "simple_phone.cli", "answer", *LOCAL,
              "--user", "1002", "--local-port", "5093", "--rtp-port", "41400",
              "--media", "echo", "--duration", "5", "--timeout", "15"],
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace",
         )  # fmt: skip
         self.addCleanup(answer.kill)
         time.sleep(1.5)  # its endpoint starts
@@ -233,7 +233,12 @@ class SoundCardTest(unittest.TestCase):
         command = [sys.executable, "-m", "simple_phone.cli", *args]
         output = subprocess.PIPE if wait else subprocess.DEVNULL
         process = subprocess.Popen(
-            command, env=self.env, text=True, stdout=output, stderr=subprocess.STDOUT
+            command,
+            env=self.env,
+            text=True,
+            errors="replace",
+            stdout=output,
+            stderr=subprocess.STDOUT,
         )
         if not wait:
             self.addCleanup(process.wait)
@@ -250,7 +255,7 @@ class SoundCardTest(unittest.TestCase):
     def test_devices_have_numeric_ids(self):
         status, output = self.run_cli("devices")
         self.assertEqual(status, 0, output)
-        self.assertRegex(output, r"1 +│ nulldev")
+        self.assertRegex(output, r"1 +\S nulldev")  # "│", or "|" in cp1252
 
     def test_mic_and_speaker_on_a_chosen_device(self):
         self.run_cli("answer", *LOCAL, "--user", "1002", "--local-port", "5095",
